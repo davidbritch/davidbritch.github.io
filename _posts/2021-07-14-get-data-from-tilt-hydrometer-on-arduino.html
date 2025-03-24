@@ -1,0 +1,150 @@
+---
+layout: post
+title: Get data from a tilt hydrometer on an Arduino
+date: '2021-07-14T11:06:00.030+01:00'
+author: David Britch
+tags:
+- Arduino
+modified_time: '2021-07-14T11:20:09.607+01:00'
+thumbnail: https://1.bp.blogspot.com/-7NMufNaP0r0/YO6tLsqTgHI/AAAAAAAADac/kExsAUEL1LIJkNE481TCrozbzv-PiwcwgCNcBGAsYHQ/s72-w640-c-h308/Capture.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-6574762074872236521
+blogger_orig_url: https://dbritch.blogspot.com/2021/07/get-data-from-tilt-hydrometer-on-arduino.html
+---
+
+<p>A tilt hydrometer is a submersible thermometer and hydrometer for monitoring fermentation. It’s a Bluetooth LE device that reports data via the iBeacon protocol. Specifically, it broadcasts a major and minor value, which represent the temperature and gravity of the liquid its submersed in, via the manufacturer data. These values can be extracted from the manufacturer data and converted into decimal values.</p>
+<p>The manufacturer data it broadcasts is a hex string, such as the following:</p>
+<pre><code>4c000215a495bb30c5b14b44b5121370f02d74de0047042b00
+</code></pre>
+<p>This data breaks down as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Apple beacon</th>
+<th>Type</th>
+<th>Length</th>
+<th>Device UUID</th>
+<th>Major (temperature)</th>
+<th>Minor (gravity)</th>
+<th>???</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">4c 00</td>
+<td style="text-align: center;">02</td>
+<td style="text-align: center;">15</td>
+<td style="text-align: left;">a4 95 bb 30 c5 b1 4b 44 b5 12 13 70 f0 2d 74 de</td>
+<td style="text-align: center;">00 47</td>
+<td style="text-align: center;">04 2b</td>
+<td style="text-align: center;">00</td>
+</tr>
+</tbody>
+</table><p>The Device UUID is shared between devices of a specific colour (it’s unimportant what this means, other than to know that the Device UUID above identifies it as a black tilt).</p>
+<p>The temperature is in degrees Fahrenheit, and is a 16 bit unsigned integer in big endian format.  The gravity is a 16 bit unsigned integer in big endian format, that must be divided by 1000 to obtain the correct value. For the message above, the temperature is 71F (21.67 C) and the gravity is 1.067.</p>
+<p>Normally I monitor the data the tilt returns via an app on my phone, but for various reasons I decided to build my own device to display the data.</p>
+<p>My microcontroller of choice is Arduino. They are fantastic, cheap, reliable, and powerful devices and I’ve used them in several projects. The Arduino IDE is a bit basic, but I’m still constantly surprised that Arduino’s “just work”, particularly when I can’t say that about many other technology stacks.</p>
+<p>My Arduino of choice, when I require connectivity, is the Arduino Nano 33 IoT. It’s perfect for small devices that require WiFi and Bluetooth functionality. The process for using the Arduino to get data from the tilt hydrometer is as follows:</p>
+<ul>
+<li>Start bluetooth.</li>
+<li>Scan for your tilt hydrometer. Once the tilt is found, stop scanning.</li>
+<li>Retrieve the manufacturer data from the tilt, and extract the temperature and gravity.</li>
+<li>Stop bluetooth.</li>
+</ul>
+<p>Note that because an iBeacon device broadcasts its data, there’s no need to connect to the device.</p>
+<p>The <a href="https://www.arduino.cc/en/Reference/ArduinoBLE">ArduinoBLE library</a> can be used to manage bluetooth connectivity. If you’re interested in how the library works, see its <a href="https://github.com/arduino-libraries/ArduinoBLE">GitHub repo</a>. The problem with the library is that it doesn’t support reading manufacturer data. However, an <a href="https://github.com/arduino-libraries/ArduinoBLE/pull/53">unmerged PR</a> has added that functionality. This version of the library must be installed to your Arduino IDE’s library directory for the sketch below to work (clone the ArduinoBLE repo, switch to the branch containing the PR, zip the repo contents, place the zip in the library directory for the Arduino IDE).</p>
+<p>My sketch that gets the manufacturer data from the tilt, and decodes/extracts the temperature and gravity is shown below:</p>
+<pre><code>#include &lt;ArduinoBLE.h&gt;
+ 
+char tiltMacAddress[] = "your tilt MAC address goes here e.g. aa:bb:cc:dd:ee:ff";
+float temperature = 0;
+float gravity = 0;
+ 
+void setup()
+{
+    Serial.begin(9600);
+    while (!Serial); 
+    
+    BLE.setEventHandler(BLEDiscovered, OnBLEDiscovered);
+    StartBluetooth();
+}
+ 
+void loop()
+{
+    if (temperature == 0 || gravity == 0)
+    {
+        BLE.poll();
+    }
+}
+ 
+void StartBluetooth()
+{
+    if (!BLE.begin())
+    {
+        Serial.println("Can't start BLE");
+        return;
+    }
+    Serial.println("Started bluetooth");
+    BLE.scanForAddress(tiltMacAddress);
+    Serial.println("Started scan");
+}
+ 
+void OnBLEDiscovered(BLEDevice peripheral)
+{
+    if (peripheral.hasManufacturerData())
+    {
+        Serial.println("Tilt detected");
+        StopScan();
+        GetTiltData(peripheral);
+        StopBluetooth();
+    }
+}
+ 
+void StopScan()
+{
+    BLE.stopScan();
+    Serial.println("Stopped scan");
+}
+ 
+void StopBluetooth()
+{
+    BLE.end();
+    Serial.println("Stopped bluetooth");
+}
+ 
+void GetTiltData(BLEDevice peripheral)
+{
+    Serial.println("Address: " + peripheral.address());
+    Serial.println("RSSI: " + String(peripheral.rssi()));
+   
+    String tiltData = peripheral.manufacturerData();
+    Serial.println("Data: " + tiltData);
+   
+    String tempHex = tiltData.substring(40, 44);
+    String gravityHex = tiltData.substring(44, 48);
+   
+    char tempHexChar[5];
+    tempHex.toCharArray(tempHexChar, 5);
+    float tempF = strtol(tempHexChar, NULL, 16);
+    temperature = (tempF - 32) * .5556;
+    Serial.println("Temp: " + String(temperature));
+   
+    char gravChar[5]; 
+    gravityHex.toCharArray(gravChar, 5);
+    long grav = strtol(gravChar, NULL, 16);
+    gravity = grav / 1000.0f;
+    Serial.println("Gravity: " + String(gravity, 3));
+}
+</code></pre>
+<p>After starting bluetooth on the Arduino, a tilt hydrometer can be scanned for using <code>BLE.scanForAddress(tiltMacAddress)</code>. I’d recommend using the <code>scanForAddress</code> method over the <code>scan</code> method, as it will take less time to find your tilt. Obviously, this requires knowing the MAC address of your tilt, which can easily be obtained by free bluetooth scanners on most platforms.</p>
+<p>Once the tilt with the specified MAC address is discovered, the <code>BLEDiscovered</code> event fires, which in turn executes the <code>OnBLEDiscovered</code> handler. This handler retrieves the manufacturer data with the <code>BLEDevice.manufacturerData</code> method, which returns a hex string. The major and minor values can then be extracted from the hex string, and converted into decimal-based temperature and gravity values.</p>
+<p>Outputting the data to the serial port shows that it’s been successfully retrieved:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-7NMufNaP0r0/YO6tLsqTgHI/AAAAAAAADac/kExsAUEL1LIJkNE481TCrozbzv-PiwcwgCNcBGAsYHQ/s873/Capture.PNG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="420" data-original-width="873" height="308" src="https://1.bp.blogspot.com/-7NMufNaP0r0/YO6tLsqTgHI/AAAAAAAADac/kExsAUEL1LIJkNE481TCrozbzv-PiwcwgCNcBGAsYHQ/w640-h308/Capture.PNG" width="640" /></a></div>
+<p>Having successfully retrieved the tilt data, it’s then possible to output it to Nixie tubes. This involved some refactoring of the above code to make it more robust to the appearance and disappearance of the tilt, and to only retrieve data every hour, rather than continuously (the data only changes very slowly).</p>
+<p>So here it is - a one of a kind Nixie device (using 4x IN12A and 2x IN12B tubes) that displays the time (set on startup from an NTP server, and resynchronised every 24 hours):</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-1YcFpOYO0U4/YO6tRlmRI2I/AAAAAAAADag/sLk0V32cjjUPH9tc2iwjQpuOulDrWjOGwCNcBGAsYHQ/s2016/IMG_1142.JPG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1512" data-original-width="2016" height="300" src="https://1.bp.blogspot.com/-1YcFpOYO0U4/YO6tRlmRI2I/AAAAAAAADag/sLk0V32cjjUPH9tc2iwjQpuOulDrWjOGwCNcBGAsYHQ/w400-h300/IMG_1142.JPG" width="400" /></a></div>
+<p>When a tilt hydrometer is detected, it also displays the fermentation data. Temperature:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-mENpCD0Vyqg/YO6tSHY0VFI/AAAAAAAADak/yDn0zpyTUrMxjVHHNEMrEfUfXtxj4g5MwCNcBGAsYHQ/s2016/IMG_1148.JPG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1512" data-original-width="2016" height="300" src="https://1.bp.blogspot.com/-mENpCD0Vyqg/YO6tSHY0VFI/AAAAAAAADak/yDn0zpyTUrMxjVHHNEMrEfUfXtxj4g5MwCNcBGAsYHQ/w400-h300/IMG_1148.JPG" width="400" /></a></div>
+<p>Gravity:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-sCn55Gb9HzE/YO6tSFAJzaI/AAAAAAAADao/q2c5mQRnEekJCb0yzsJulwoCLrbKR0GSACNcBGAsYHQ/s2016/IMG_1150.JPG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1512" data-original-width="2016" height="300" src="https://1.bp.blogspot.com/-sCn55Gb9HzE/YO6tSFAJzaI/AAAAAAAADao/q2c5mQRnEekJCb0yzsJulwoCLrbKR0GSACNcBGAsYHQ/w400-h300/IMG_1150.JPG" width="400" /></a></div>
+<p>Provided that a tilt hydrometer is detected, the device displays the time for a minute, followed by temperature for 30 seconds, and gravity for 30 seconds. If there’s no tilt detected, the time is displayed permanently. The device also includes programmable RGB leds, which act as backlights to each Nixie tube.</p>
+

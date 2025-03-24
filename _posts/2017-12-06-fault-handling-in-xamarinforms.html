@@ -1,0 +1,105 @@
+---
+layout: post
+title: 'Fault Handling in Xamarin.Forms: Combining the Retry and Circuit Breaker Patterns'
+date: '2017-12-06T12:28:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-12-06T12:28:01.100Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-6413260501921604012
+blogger_orig_url: https://dbritch.blogspot.com/2017/12/fault-handling-in-xamarinforms.html
+---
+
+<p>Previously, I’ve written about using the <a href="https://www.davidbritch.com/2017/07/transient-fault-handling-in.html" target="_blank">retry pattern to perform transient fault handling in Xamarin.Forms with Polly</a>, and <a href="https://www.davidbritch.com/2017/11/fault-handling-in-xamarinforms-circuit_23.html" target="_blank">using the circuit breaker pattern to handle variable length faults with Polly</a>. The retry pattern enables an application to retry an operation in the expectation that it will eventually succeed, while the circuit breaker pattern prevents an application from performing an operation that is likely to fail.</p>
+<p>These patterns can both increase the stability and resiliency of an application. So how do you choose which to implement in your application? Do you choose to only handle transient faults, at the expense of ignoring variable length faults? Or do you choose to ignore transient faults, and instead handle variable length faults?</p>
+<p>Ideally you should handle both faults. An application can combine the patterns by using the retry pattern to invoke an operation through a circuit breaker. The only caveat is that the retry logic should be sensitive to any exceptions returned by the circuit breaker, and it should abandon retry attempts if the circuit breaker indicates that a fault is not transient.</p>
+<p>This blog post will discuss using Polly’s <strong>PolicyWrap</strong> class to combine the retry and circuit breaker patterns.</p>
+<h3>Implementation</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientRESTPollyWithCircuitBreaker">GitHub</a>, is similar to the sample application from my previous blog posts in this series, with the implementation of the retry and circuit breaker patterns being provided by Polly.</p>
+<h5>Initialization</h5>
+<p>The <strong>App</strong> class in the sample application initializes the classes that are responsible for communicating with the REST service:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:504e61e8-389b-482d-ba41-1c0af4f3766e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 61px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">TodoManager </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TodoItemManager(
+    </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RestService(
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ResilientRequestProvider()));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RestService</strong> class provides data to the <strong>TodoItemManager</strong> class, with the <strong>RestService</strong> class making REST calls using the <strong>ResilientRequestProvider</strong> class, which uses Polly to combine the retry and circuit breaker patterns.</p>
+<h5>ResilientRequestProvider</h5>
+<p>The following code example shows the <strong>GetAsync</strong> method from the <strong>ResilientRequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:14d699dd-2e69-4a5f-8077-df979e92fabc" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 314px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> HttpInvoker(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await policyWrap.ExecuteAsync(operation);
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+    var httpResponse </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await HttpInvoker(async () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode();
+        serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+    });
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The lambda expression in the <strong>GetAsync</strong> method is passed to the <strong>HttpInvoker</strong> method, which in turn passes it to the <strong>ExecuteAsync</strong> method of the <strong>PolicyWrap</strong> instance. The <strong>PolicyWrap</strong> type is a Polly type, which provides a way to combine resilience strategies. Therefore, the code in the lambda expression is what will be executed by the policy that wraps the retry and circuit breaker policies.</p>
+<p>The following code example shows how to combine Polly’s retry and circuit breaker policies:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e5362851-847e-460e-9511-fbb41a4087a2" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 450px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">var retryPolicy </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Policy
+    </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Don't retry if circuit breaker has broken the circuit</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    .Handle</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Exception</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(e </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 0);">!</span><span style="color: rgb(0, 0, 0);">(e </span><span style="color: rgb(0, 0, 255);">is</span><span style="color: rgb(0, 0, 0);"> BrokenCircuitException))
+    .WaitAndRetryAsync(</span><span style="color: rgb(128, 0, 128);">3</span><span style="color: rgb(0, 0, 0);">,
+                       retryAttempt </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> TimeSpan.FromSeconds(Math.Pow(</span><span style="color: rgb(128, 0, 128);">2</span><span style="color: rgb(0, 0, 0);">, retryAttempt)),
+                       (exception, delay, retryCount, context) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+                       {
+                           Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Retry {retryCount} after {delay.Seconds} seconds delay </span><span style="color: rgb(128, 0, 0);">
+</span><span style="color: rgb(0, 0, 0);">                                             due to {exception.Message}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">);</span><span style="color: rgb(128, 0, 0);">
+</span><span style="color: rgb(0, 0, 0);">                       });
+
+var circuitBreakerPolicy </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Policy
+    .Handle</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Exception</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">()
+    .CircuitBreakerAsync(</span><span style="color: rgb(128, 0, 128);">4</span><span style="color: rgb(0, 0, 0);">,
+                         TimeSpan.FromSeconds(</span><span style="color: rgb(128, 0, 128);">5</span><span style="color: rgb(0, 0, 0);">),
+                         </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onBreak</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">                         (exception, delay) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> 
+                             Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Breaking the circuit for {delay.Seconds} seconds </span><span style="color: rgb(128, 0, 0);">
+</span><span style="color: rgb(0, 0, 0);">                                               due to {exception.Message}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">),</span><span style="color: rgb(128, 0, 0);">
+</span><span style="color: rgb(0, 0, 0);">                         </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onReset</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">                         () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Call ok - closing the circuit again.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">),
+                         </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onHalfOpen</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">                         () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Circuit is half-open. The next call is a trial.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">));
+
+policyWrap </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p><br></p>
+<p>The wrapped policies are executed by the<strong> PolicyWrap.ExecuteAsync</strong> method from the outermost (left) to the innermost (right), with exceptions bubbling back outwards through the layers. Therefore, <strong>retryPolicy</strong> is the outermost policy and it places its call through the <strong>circuitBreakerPolicy</strong>. The <strong>circuitBreakerPolicy</strong> is the innermost policy, and unless the circuit is open, it executes the passed delegate. The passed delegate either succeeds, returns handled results, or throws an exception. The circuit breaker will then update the circuit state for that outcome, and pass it back to the <strong>retryPolicy</strong>. The <strong>retryPolicy</strong> will then, provided that the circuit breaker hasn’t thrown a <strong>BrokenCircuitException,</strong> (for a fault) wait and retry the operation, or fail when retries are exhausted.</p>
+<p>For more information about using Polly’s retry policy, see <a href="https://www.davidbritch.com/2017/07/transient-fault-handling-in.html" target="_blank">Transient Fault Handling in Xamarin.Forms using Polly</a>. For more information about using Polly’s circuit breaker policy, see <a href="https://www.davidbritch.com/2017/11/fault-handling-in-xamarinforms-circuit_23.html" target="_blank">Fault Handling in Xamarin.Forms: Circuit Breaker using Polly</a>.</p>
+<h3>Running the Sample Application</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientRESTPollyWithCircuitBreaker">GitHub</a>, connects to a read-only REST service hosted by Xamarin, and it’s most likely that when running the sample the GET operation will succeed on first attempt. To observe the combined retry and circuit breaker patterns in action, change the <strong>RestUrl</strong> property in the <strong>Constants</strong> class to an address that doesn’t exist – this can be accomplished by adding a random character to the end of the existing string. Then run the application and observe the output window in Visual Studio. You should see something like:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:a7e8786c-9ac1-4f90-8fa8-1c068d15b92f" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 83px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">Retry </span><span style="color: rgb(0, 0, 0);">1</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">2</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">4</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">3</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">8</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Breaking the circuit for </span><span style="color: rgb(0, 0, 0);">5</span><span style="color: rgb(0, 0, 0);"> seconds due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This shows the GET operation being retried 3 times, after an exponentially increasing delay. After the third retry, the circuit is broken for the specified amount of time. Note that the values used to configure the retry and circuit breaker policies in this example are purely for demonstration purposes.</p>
+<h3>Summary</h3>
+<p>Polly is a .NET fault handling library, which includes fluent support for a number of resilience patterns. The <strong>PolicyWrap</strong> type allows policies to be easily combined, with them being executed from the outermost to the innermost.</p>
+<p>The advantage of using Polly over implementing your own resilience patterns is that Polly includes multiple fault handling patterns that can easily be combined for additional resilience when handling faults.</p>

@@ -1,0 +1,120 @@
+---
+layout: post
+title: Adventures in ARKit - rotating earth
+date: '2021-03-19T11:08:00.004Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-19T11:09:47.333Z'
+thumbnail: https://1.bp.blogspot.com/-zu8xtTDxq7E/YEuVp95llWI/AAAAAAAADTs/_7q5JVluqv8028quK_hZw-dTZwN5I2NcgCNcBGAsYHQ/s72-c/IMG_0987.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7837952774549687924
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-rotating-earth.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-animation.html">previous blog post</a> I discussed how to animate a node in a scene. Specifically, I animated a cube by rotating it continuously through 360 degrees on the Y axis. However, I originally wanted to animate a sphere, with a view to creating a rotating earth. In this blog post I’ll do just that.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/06%20-%20ARKitFun%20-%20rotating%20earth">GitHub</a>.</p>
+<h2 id="rotating-earth">Rotating earth</h2>
+<p>In order to add a sphere to the scene, I created a <code>SphereNode</code> type that derives from <code>SCNNode</code>:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun<span class="token punctuation">.</span>Nodes
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">SphereNode</span> <span class="token punctuation">:</span> SCNNode
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token function">SphereNode</span><span class="token punctuation">(</span><span class="token keyword">float</span> size<span class="token punctuation">,</span> <span class="token keyword">string</span> filename<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNNode node <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNNode</span>
+            <span class="token punctuation">{</span>
+                Geometry <span class="token operator">=</span> <span class="token function">CreateGeometry</span><span class="token punctuation">(</span>size<span class="token punctuation">,</span> filename<span class="token punctuation">)</span><span class="token punctuation">,</span>
+                Opacity <span class="token operator">=</span> <span class="token number">0.975f</span>
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            <span class="token function">AddChildNode</span><span class="token punctuation">(</span>node<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        SCNGeometry <span class="token function">CreateGeometry</span><span class="token punctuation">(</span><span class="token keyword">float</span> size<span class="token punctuation">,</span> <span class="token keyword">string</span> filename<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNMaterial material <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNMaterial</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>Diffuse<span class="token punctuation">.</span>Contents <span class="token operator">=</span> UIImage<span class="token punctuation">.</span><span class="token function">FromFile</span><span class="token punctuation">(</span>filename<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>DoubleSided <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">;</span>
+
+            SCNSphere geometry <span class="token operator">=</span> SCNSphere<span class="token punctuation">.</span><span class="token function">Create</span><span class="token punctuation">(</span>size<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            geometry<span class="token punctuation">.</span>Materials <span class="token operator">=</span> <span class="token keyword">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> material <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            <span class="token keyword">return</span> geometry<span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>SphereNode</code> constructor takes <code>float</code> and <code>string</code> arguments. The <code>float</code> argument represents the size of the sphere, and the <code>string</code> argument represents the filename of an image to overlay on the sphere. The constructor creates the material and geometry for the sphere, and adds the node as a child node to the <code>SCNNode</code>. The power of ARKit is demonstrated by the <code>CreateGeometry</code> method, which loads the supplied image and maps it onto the geometry as a material. The result is that a regular 2D rectangular image (in this case a map of the world) is automatically mapped onto the sphere geometry.</p>
+<p>The <code>ViewDidAppear</code> method in the <code>ViewController</code> class can then be modified to add a <code>SphereNode</code> to the scene:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> System<span class="token punctuation">.</span>Linq<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Extensions<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Nodes<span class="token punctuation">;</span>
+<span class="token keyword">using</span> CoreGraphics<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+        <span class="token keyword">readonly</span> ARSCNView sceneView<span class="token punctuation">;</span>
+        <span class="token keyword">const</span> <span class="token keyword">float</span> size <span class="token operator">=</span> <span class="token number">0.1f</span><span class="token punctuation">;</span>
+        <span class="token keyword">const</span> <span class="token keyword">float</span> zPosition <span class="token operator">=</span> <span class="token operator">-</span><span class="token number">0.5f</span><span class="token punctuation">;</span>
+        <span class="token keyword">bool</span> isAnimating<span class="token punctuation">;</span>
+        <span class="token keyword">float</span> zAngle<span class="token punctuation">;</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+        
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+            <span class="token punctuation">{</span>
+                AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                PlaneDetection <span class="token operator">=</span> ARPlaneDetection<span class="token punctuation">.</span>Horizontal<span class="token punctuation">,</span>
+                WorldAlignment <span class="token operator">=</span> ARWorldAlignment<span class="token punctuation">.</span>Gravity
+            <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            SphereNode sphereNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SphereNode</span><span class="token punctuation">(</span>size<span class="token punctuation">,</span> <span class="token string">"world-map.jpg"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sphereNode<span class="token punctuation">.</span>Position <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> zPosition<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>sphereNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            UIRotationGestureRecognizer rotationGestureRecognizer <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">UIRotationGestureRecognizer</span><span class="token punctuation">(</span>HandleRotateGesture<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span><span class="token function">AddGestureRecognizer</span><span class="token punctuation">(</span>rotationGestureRecognizer<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+        <span class="token punctuation">}</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>In this example, a <code>SphereNode</code> is added to the scene and positioned at (0,0,-0.5). The <code>SphereNode</code> constructor specifies a world map image that will be mapped to the geometry of the <code>SCNNode</code>.  In addition, a <code>UIRotationGestureRecognizer</code> is added to the scene.</p>
+<p>The following code example shows the <code>HandleRotateGesture</code> method:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">void</span> <span class="token function">HandleRotateGesture</span><span class="token punctuation">(</span>UIRotationGestureRecognizer sender<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    SCNView areaPanned <span class="token operator">=</span> sender<span class="token punctuation">.</span>View <span class="token keyword">as</span> SCNView<span class="token punctuation">;</span>
+    CGPoint point <span class="token operator">=</span> sender<span class="token punctuation">.</span><span class="token function">LocationInView</span><span class="token punctuation">(</span>areaPanned<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult<span class="token punctuation">[</span><span class="token punctuation">]</span> hitResults <span class="token operator">=</span> areaPanned<span class="token punctuation">.</span><span class="token function">HitTest</span><span class="token punctuation">(</span>point<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">SCNHitTestOptions</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult hit <span class="token operator">=</span> hitResults<span class="token punctuation">.</span><span class="token function">FirstOrDefault</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>hit <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        SCNNode node <span class="token operator">=</span> hit<span class="token punctuation">.</span>Node<span class="token punctuation">;</span>
+        zAngle <span class="token operator">+</span><span class="token operator">=</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span><span class="token punctuation">(</span><span class="token operator">-</span>sender<span class="token punctuation">.</span>Rotation<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        node<span class="token punctuation">.</span>EulerAngles <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span>node<span class="token punctuation">.</span>EulerAngles<span class="token punctuation">.</span>X<span class="token punctuation">,</span> node<span class="token punctuation">.</span>EulerAngles<span class="token punctuation">.</span>Y<span class="token punctuation">,</span> zAngle<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>In this example, the node on which the rotate gesture was detected is determined. Then the node is rotated on the Z-axis by the rotation angle requested by the gesture.</p>
+<p>The overall effect is that when the app runs, a <code>SphereNode</code> that resembles the earth appears:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-zu8xtTDxq7E/YEuVp95llWI/AAAAAAAADTs/_7q5JVluqv8028quK_hZw-dTZwN5I2NcgCNcBGAsYHQ/s1136/IMG_0987.PNG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1136" data-original-width="640" height="320" src="https://1.bp.blogspot.com/-zu8xtTDxq7E/YEuVp95llWI/AAAAAAAADTs/_7q5JVluqv8028quK_hZw-dTZwN5I2NcgCNcBGAsYHQ/s320/IMG_0987.PNG" /></a></div>
+<p>Tapping on the <code>SphereNode</code> starts it rotating, and while rotating, tapping it a second time stops it rotating. In addition, the pinch gesture will resize the <code>SphereNode</code>, and the rotate gesture enables the Z-axis of the <code>SphereNode</code> to be manipulated.</p>
+<p>In my next blog post I’ll discuss displaying a 3D model in a scene.</p>
+

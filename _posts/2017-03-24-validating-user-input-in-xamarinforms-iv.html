@@ -1,0 +1,152 @@
+---
+layout: post
+title: Validating User Input in Xamarin.Forms IV
+date: '2017-03-24T10:03:00.000Z'
+author: David Britch
+tags:
+- Validation
+- C#
+- Xamarin
+modified_time: '2017-03-24T10:03:41.621Z'
+thumbnail: https://3.bp.blogspot.com/-rhYuaQxnaiI/WLllXbfw7SI/AAAAAAAACw0/Zqvd6yxmE-sFWNATdswueqhr-u2QQ_lDQCLcB/s72-c/Screen%2BShot%2B2017-03-03%2Bat%2B12.23.20.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-76012247368135169
+blogger_orig_url: https://dbritch.blogspot.com/2017/03/validating-user-input-in-xamarinforms-iv.html
+---
+
+<p><a href="http://www.davidbritch.com/2017/03/validating-user-input-in-xamarinforms_16.html" target="_blank">Previously</a> I discussed how validation can be automatically triggered when properties changes, or manually triggered to validate all properties. In this blog post I’m going to explore how to notify the user about any validation errors that have occurred.</p>
+<h3>Displaying Validation Errors</h3>
+<p>Validation errors are shown to the user by highlighting the control that contains invalid data, and by displaying an error message beneath the control, as shown in the following screenshot:</p>
+<p><a href="https://3.bp.blogspot.com/-rhYuaQxnaiI/WLllXbfw7SI/AAAAAAAACw0/Zqvd6yxmE-sFWNATdswueqhr-u2QQ_lDQCLcB/s1600/Screen%2BShot%2B2017-03-03%2Bat%2B12.23.20.png"><img title="Validation errors" style="float: none; margin-left: auto; display: block; margin-right: auto" alt="Validation errors" src="https://3.bp.blogspot.com/-rhYuaQxnaiI/WLllXbfw7SI/AAAAAAAACw0/Zqvd6yxmE-sFWNATdswueqhr-u2QQ_lDQCLcB/s400/Screen%2BShot%2B2017-03-03%2Bat%2B12.23.20.png" width="238" height="400"></a></p>
+<h2>Highlighting a Control that contains Invalid Data</h2>
+<p>The <strong>Validation</strong> attached behaviour class is used to highlight controls where validation errors occur. The following code example shows how the <strong>Validation</strong> behaviour is attached to an <strong>Entry</strong> control:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:c6ca5fd1-cb0c-48d5-9c18-20fc35a220ae" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 58px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">&lt;</span><span style="color: #800000;">Entry </span><span style="color: #FF0000;">Placeholder</span><span style="color: #0000FF;">=&quot;Enter forename here&quot;</span><span style="color: #FF0000;"> 
+       Text</span><span style="color: #0000FF;">=&quot;</span><span style="color: #808000;">{Binding User.Forename, Mode=TwoWay}</span><span style="color: #0000FF;">&quot;</span><span style="color: #FF0000;"> 
+       local:Validation.Errors</span><span style="color: #0000FF;">=&quot;</span><span style="color: #808000;">{Binding User.Errors[Forename]}</span><span style="color: #0000FF;">&quot;</span><span style="color: #FF0000;"> </span><span style="color: #0000FF;">/&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>Validation</strong> attached behaviour gets and sets the <strong>Errors</strong> bindable property, and in this example binds it to the <strong>Errors</strong> property of the <strong>User</strong> model class that’s exposed by the associated view model. The <strong>User.Errors</strong> property is provided by the <strong>ValidatableBase</strong> class, from which all model classes derive, and is an instance of the <strong>Validator</strong> class. The indexer of the <strong>Validator</strong> class returns a <strong>ReadOnlyCollection</strong> of error strings, to retrieve any validation errors for the <strong>Forename</strong> property. The <strong>Validation</strong> attached behavior class is shown in the following code example:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:549cceef-1891-4e54-9d0a-404f1bb64c30" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 785px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">static</span><span style="color: #000000;"> </span><span style="color: #0000FF;">class</span><span style="color: #000000;"> Validation
+{
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">static</span><span style="color: #000000;"> </span><span style="color: #0000FF;">readonly</span><span style="color: #000000;"> BindableProperty ErrorsProperty </span><span style="color: #000000;">=</span><span style="color: #000000;">
+        BindableProperty.CreateAttached(
+            </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Errors</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">,
+            </span><span style="color: #0000FF;">typeof</span><span style="color: #000000;">(ReadOnlyCollection</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">),
+            </span><span style="color: #0000FF;">typeof</span><span style="color: #000000;">(Validation),
+            Validator.EmptyErrorsCollection,
+            propertyChanged: OnPropertyErrorsChanged);
+
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">static</span><span style="color: #000000;"> ReadOnlyCollection</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> GetErrors(BindableObject element)
+    {
+        </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> (ReadOnlyCollection</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">)element.GetValue(ErrorsProperty);
+    }
+
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">static</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> SetErrors(BindableObject element, ReadOnlyCollection</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> value)
+    {
+        element.SetValue(ErrorsProperty, value);
+    }
+
+    </span><span style="color: #0000FF;">static</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> OnPropertyErrorsChanged(BindableObject element, </span><span style="color: #0000FF;">object</span><span style="color: #000000;"> oldValue, </span><span style="color: #0000FF;">object</span><span style="color: #000000;"> newValue)
+    {
+        var view </span><span style="color: #000000;">=</span><span style="color: #000000;"> element </span><span style="color: #0000FF;">as</span><span style="color: #000000;"> View;
+        </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (view </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;"> </span><span style="color: #000000;">|</span><span style="color: #000000;"> oldValue </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;"> </span><span style="color: #000000;">||</span><span style="color: #000000;"> newValue </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">)
+        {
+            </span><span style="color: #0000FF;">return</span><span style="color: #000000;">;
+        }
+
+        var propertyErrors </span><span style="color: #000000;">=</span><span style="color: #000000;"> (ReadOnlyCollection</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">)newValue;
+        </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (propertyErrors.Any())
+        {
+            view.Effects.Add(</span><span style="color: #0000FF;">new</span><span style="color: #000000;"> BorderEffect());
+        }
+        </span><span style="color: #0000FF;">else</span><span style="color: #000000;">
+        {
+            var effectToRemove </span><span style="color: #000000;">=</span><span style="color: #000000;"> view.Effects.FirstOrDefault(e </span><span style="color: #000000;">=&gt;</span><span style="color: #000000;"> e </span><span style="color: #0000FF;">is</span><span style="color: #000000;"> BorderEffect);
+            </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (effectToRemove </span><span style="color: #000000;">!=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">)
+            {
+                view.Effects.Remove(effectToRemove);
+            }
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>Errors</strong> attached property is registered as a <strong>ReadOnlyCollection</strong> of strings, by the <strong>BindableProperty.CreateAttached</strong> method. When the value of the <strong>Errors</strong> bindable property changes, the <strong>OnPropertyErrorsChanged</strong> method is invoked. The parameters for this method provide the instance of the control that the<strong> Errors</strong> bindable property is attached to, and any validation errors for the control. The <strong>BorderEffect</strong> class is added to the control’s <strong>Effects</strong> collection if validation errors are present, otherwise it’s removed from the control’s <strong>Effects</strong> collection.</p>
+<p>The <strong>BorderEffect</strong> class subclasses the <strong>RoutingEffect</strong> class, and is shown in the following code example:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:38c0c3fa-01bc-4f05-91ee-0e2562592a07" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 106px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">class</span><span style="color: #000000;"> BorderEffect : RoutingEffect
+{
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> BorderEffect() : </span><span style="color: #0000FF;">base</span><span style="color: #000000;">(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Xamarin.BorderEffect</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)
+    {
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RoutingEffect</strong> class represents a platform-independent effect that wraps an inner effect that’s usually platform-specific. This simplifies the effect removal process, since there is no compile-time access to the type information for a platform-specific effect. The <strong>BorderEffect</strong> calls the base class constructor, passing in a parameter consisting of a concatenation of the resolution group name, and the unique ID that’s specified on each platform-specific effect class.</p>
+<p>The following code example shows the <strong>Xamarin.BorderEffect</strong> implementation for iOS:</p>
+
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e647c35d-5bb9-47e0-ab74-2d5d1bd4122b" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 576px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #000000;">[assembly: ResolutionGroupName(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Xamarin</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+[assembly: ExportEffect(</span><span style="color: #0000FF;">typeof</span><span style="color: #000000;">(BorderEffect), </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">BorderEffect</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+</span><span style="color: #0000FF;">namespace</span><span style="color: #000000;"> MVVMUtopia.iOS
+{
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">class</span><span style="color: #000000;"> BorderEffect : PlatformEffect
+    {
+        </span><span style="color: #0000FF;">protected</span><span style="color: #000000;"> </span><span style="color: #0000FF;">override</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> OnAttached()
+        {
+            </span><span style="color: #0000FF;">try</span><span style="color: #000000;">
+            {
+                Control.Layer.BorderColor </span><span style="color: #000000;">=</span><span style="color: #000000;"> UIColor.Red.CGColor;
+                Control.Layer.BorderWidth </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">1</span><span style="color: #000000;">;
+            }
+            </span><span style="color: #0000FF;">catch</span><span style="color: #000000;"> (Exception ex)
+            {
+                Console.WriteLine(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Cannot set property on attached control. Error: </span><span style="color: #800000;">&quot;</span><span style="color: #000000;">, ex.Message);
+            }
+        }
+
+        </span><span style="color: #0000FF;">protected</span><span style="color: #000000;"> </span><span style="color: #0000FF;">override</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> OnDetached()
+        {
+            </span><span style="color: #0000FF;">try</span><span style="color: #000000;">
+            {
+                Control.Layer.BorderWidth </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">0</span><span style="color: #000000;">;
+            }
+            </span><span style="color: #0000FF;">catch</span><span style="color: #000000;"> (Exception ex)
+            {
+                Console.WriteLine(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Cannot set property on attached control. Error: </span><span style="color: #800000;">&quot;</span><span style="color: #000000;">, ex.Message);
+            }
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>The <strong>OnAttached</strong> method sets <strong>Control.Layer</strong> properties to values to create the red border, and the <strong>OnDetached</strong> method removes the red border. This functionality is wrapped in a try/catch block in case the control that the effect is attached to does not have the required <strong>Control.Layer</strong> properties.</p>
+<p>For more information about effects, see <a href="https://developer.xamarin.com/guides/xamarin-forms/application-fundamentals/effects/" target="_blank">Effects</a>.</p>
+<h2>Displaying an Error Message</h2>
+<p>Each control that undergoes validation also has a <strong>Label</strong> beneath it, which is used to display the error message associated with the control. The following code example shows the<strong> Label</strong> displayed underneath the <strong>Entry</strong> that accepts a user’s forename:</p>
+
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6d734e85-a280-4783-9422-91e67b228909" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 30px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">&lt;</span><span style="color: #800000;">Label </span><span style="color: #FF0000;">Text</span><span style="color: #0000FF;">=&quot;</span><span style="color: #808000;">{Binding User.Errors[Forename], Converter={StaticResource FirstErrorConverter}</span><span style="color: #0000FF;">&quot;</span><span style="color: #FF0000;"> </span><span style="color: #0000FF;">/&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>The <strong>Label</strong> binds its <strong>Text</strong> property to the <strong>Errors</strong> property of the <strong>User</strong> model class that’s exposed by the associated view model. The <strong>User.Errors</strong> property is provided by the <strong>ValidatableBase</strong> class, from which all model classes derive, and is an instance of the <strong>Validator</strong> class. The indexer of the <strong>Validator</strong> class returns a <strong>ReadOnlyCollection</strong> of error strings, with the <strong>FirstErrorConverter</strong> retrieving the first error from the collection, for display.</p>
+<h3>Summary</h3>
+<p>Any mobile app that accepts user input should ensure that the input is valid. This could involve, for example, checking that input contains only characters in a particular range, or is of a certain length. Without validation, a user can supply data that can cause the app to fail.</p>
+<p>In the context of MVVM, user input can be synchronously validated client-side in view model objects or in model objects. However, validating data in view models often means duplicating model properties. Instead, view models can delegate validation to the model objects they contain, with validation then being performed on the model objects. Validation rules can be specified on the model properties by using data annotations that derive from the <strong><a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a></strong> class.</p>
+<p>To participate in validation, model classes must derive from the <strong>ValidatableBas</strong>e class, which provides an error container whose contents are updated whenever a model class property value changes. The <strong>Validator</strong> and <strong>ValidatableBase</strong> classes both implement <strong>INotifyPropertyChanged </strong>in order to provide property change notification.</p>
+<p>The <strong>SetProperty</strong> method in the <strong>ValidatableBase</strong> class performs validation when a model property is set to a new value. The validation rules come from data annotation attributes that derive from the <strong>ValidationAttribute</strong> class. The attributes are taken from the declaration of the model property being validated.</p>
+<p>Users are notified of validation errors by highlighting the controls that contain the invalid data with red borders, and by displaying error messages that inform the user why the data is invalid.</p>
+<p>The code can be downloaded from <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">GitHub</a>.</p>

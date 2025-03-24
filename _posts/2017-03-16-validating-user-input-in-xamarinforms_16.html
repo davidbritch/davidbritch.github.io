@@ -1,0 +1,119 @@
+---
+layout: post
+title: Validating User Input in Xamarin.Forms III
+date: '2017-03-16T10:17:00.000Z'
+author: David Britch
+tags:
+- Validation
+- C#
+- Xamarin
+modified_time: '2017-03-16T10:17:19.928Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8099712872498136505
+blogger_orig_url: https://dbritch.blogspot.com/2017/03/validating-user-input-in-xamarinforms_16.html
+---
+
+<p>Previously I discussed how validation rules are specified by adding data annotation attributes, that derive from the <a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a> class, to properties in model classes that require validation. In this blog post I’m going to explore how validation is triggered, both automatically and manually.</p>
+<h4>Triggering Validation</h4>
+<p>This validation approach can automatically trigger validation when properties change, and manually trigger validation of all properties. Each will be discussed in turn.</p>
+<h3>Triggering Validation when Properties Change</h3>
+<p>Validation is automatically triggered when a bound property changes. When a two way binding in a view sets a bound property in a model class, that class should invoke the <strong>SetProperty</strong> method, provided by the <strong>BindableBase</strong> class, which sets the property values and raises the <strong>PropertyChanged</strong> event. However, the <strong>SetProperty</strong> method is also overridden by the <strong>ValidatableBase</strong> class. The <strong>SetProperty</strong> method in the <strong>ValidatableBae</strong> class calls the <strong>SetProperty</strong> method in the <strong>BindableBase</strong> class, and performs validation if the property has changed. The following code example shows how validation occurs after a property change:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:4b7c4e99-3137-4a3a-8a7c-38d5d456c177" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 465px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> ValidateProperty(</span><span style="color: #0000FF;">string</span><span style="color: #000000;"> propertyName)
+{
+    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (</span><span style="color: #0000FF;">string</span><span style="color: #000000;">.IsNullOrEmpty(propertyName))
+    {
+        </span><span style="color: #0000FF;">throw</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> ArgumentNullException(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">propertyName</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">);
+    }
+
+    var propertyInfo </span><span style="color: #000000;">=</span><span style="color: #000000;"> entityToValidate.GetType().GetRuntimeProperty(propertyName);
+    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (propertyInfo </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">)
+    {
+        </span><span style="color: #0000FF;">throw</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> ArgumentException(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">The entity does not contain a property with that name.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">, propertyName);
+    }
+
+    var propertyErrors </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> List</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+    </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> isValid </span><span style="color: #000000;">=</span><span style="color: #000000;"> TryValidateProperty(propertyInfo, propertyErrors);
+    </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> errorsChanged </span><span style="color: #000000;">=</span><span style="color: #000000;"> SetPropertyErrors(propertyInfo.Name, propertyErrors);
+
+    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (errorsChanged)
+    {
+        OnErrorsChanged(propertyName);
+        OnPropertyChanged(</span><span style="color: #0000FF;">string</span><span style="color: #000000;">.Format(CultureInfo.CurrentCulture, </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Item[{0}]</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">, propertyName));
+    }
+
+    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> isValid;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method retrieves the property to be validated, and attempts to validate it by calling the <strong>TryValidateProperty</strong> method. If the validation results change, for example, when new validation errors are found or when previous errors have been corrected, then the <strong>ErrorsChanged</strong> and <strong>PropertyChanged</strong> events are raised for the property. The following code example shows the <strong>TryValidateProperty</strong> method:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6f879f91-36eb-4fd1-bc21-6d2980e14f41" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 270px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">bool</span><span style="color: #000000;"> TryValidateProperty(PropertyInfo propertyInfo, List</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> propertyErrors)
+{
+    var results </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> List</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">ValidationResult</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+    var context </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> ValidationContext(entityToValidate) { MemberName </span><span style="color: #000000;">=</span><span style="color: #000000;"> propertyInfo.Name };
+    var propertyValue </span><span style="color: #000000;">=</span><span style="color: #000000;"> propertyInfo.GetValue(entityToValidate);
+
+    </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> isValid </span><span style="color: #000000;">=</span><span style="color: #000000;"> System.ComponentModel.DataAnnotations.Validator.TryValidateProperty(propertyValue, context, results);
+    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (results.Any())
+    {
+        propertyErrors.AddRange(results.Select(c </span><span style="color: #000000;">=&gt;</span><span style="color: #000000;"> c.ErrorMessage));
+    }
+
+    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> isValid;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method calls the <strong>TryValidateProperty</strong> method from the <a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validator.aspx" target="_blank">Validator</a> class, to validate the property value against the validation rules for the property. Any validation errors are added to a list of errors.</p>
+<h3>Trigger Validation Manually</h3>
+<p>Validation can be triggered manually for all properties of a model object. For example, in the <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">sample application</a> when the user clicks the <strong>Navigate</strong> button on the <strong>FirstPage</strong>. The button’s command delegate calls the <strong>NavigateAsync</strong> method, which is shown in the following code example:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:f46841de-fc41-4f66-8d7f-b8979447606a" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 128px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #000000;">async Task NavigateAsync()
+{
+    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (user.ValidateProperties())
+    {
+        await navigationService.NavigateAsync(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">SecondPage</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">);
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method calls the <strong>ValidateProperties</strong> method of the <strong>ValidatableBase</strong> class (because the <strong>User</strong> model class derives from the <strong>ValidatableBase</strong> class), which in turn calls the <strong>ValidatePropertie</strong>s method of the <strong>Validator</strong> class. Providing that validation succeeds, page navigation occurs, otherwise validation errors are displayed. The following code example shows the <strong>ValidateProperties</strong> method from the <strong>Validator</strong> class:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:5b976935-5de1-4b32-ad0e-f542a4ec9e39" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 514px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> ValidateProperties()
+{
+    var propertiesWithChangedErrors </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> List</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+    var propertiesToValidate </span><span style="color: #000000;">=</span><span style="color: #000000;"> entityToValidate.GetType()
+                                               .GetRuntimeProperties()
+                                               .Where(c </span><span style="color: #000000;">=&gt;</span><span style="color: #000000;"> c.GetCustomAttributes(</span><span style="color: #0000FF;">typeof</span><span style="color: #000000;">(ValidationAttribute)).Any());
+
+    </span><span style="color: #0000FF;">foreach</span><span style="color: #000000;"> (PropertyInfo propertyInfo </span><span style="color: #0000FF;">in</span><span style="color: #000000;"> propertiesToValidate)
+    {
+        var propertyErrors </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> List</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">string</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+        TryValidateProperty(propertyInfo, propertyErrors);
+
+        </span><span style="color: #0000FF;">bool</span><span style="color: #000000;"> errorsChanged </span><span style="color: #000000;">=</span><span style="color: #000000;"> SetPropertyErrors(propertyInfo.Name, propertyErrors);
+        </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (errorsChanged </span><span style="color: #000000;">&amp;&amp;</span><span style="color: #000000;"> </span><span style="color: #000000;">!</span><span style="color: #000000;">propertiesWithChangedErrors.Contains(propertyInfo.Name))
+        {
+            propertiesWithChangedErrors.Add(propertyInfo.Name);
+        }
+    }
+
+    </span><span style="color: #0000FF;">foreach</span><span style="color: #000000;"> (</span><span style="color: #0000FF;">string</span><span style="color: #000000;"> propertyName </span><span style="color: #0000FF;">in</span><span style="color: #000000;"> propertiesWithChangedErrors)
+    {
+        OnErrorsChanged(propertyName);
+        OnPropertyChanged(</span><span style="color: #0000FF;">string</span><span style="color: #000000;">.Format(CultureInfo.CurrentCulture, </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">Item[{0}]</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">, propertyName));
+    }
+
+    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> errors.Values.Count </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #800080;">0</span><span style="color: #000000;">;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method retrieves any properties that have attributes that derive from the <a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a> data annotation, and attempts to validate them by calling the <strong>TryValidateProperty</strong> method for each property. If the validation state changes, the <strong>ErrorsChanged</strong> and <strong>PropertyChanged</strong> events are raised for each property whose errors have changed. Changes occur when new errors are seen or when previously detected errors are no longer present.</p>
+<p>Users are notified of validation errors by highlighting the controls that contain the invalid data with red borders, and by displaying error messages that inform the user why the data is invalid. In my next blog post I’ll explore this topic further. In the meantime, the code can be downloaded from <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">GitHub</a>.</p>

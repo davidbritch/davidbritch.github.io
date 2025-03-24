@@ -1,0 +1,126 @@
+---
+layout: post
+title: Accessing Image Pixel Data in a Xamarin.Forms App – Android
+date: '2015-12-15T14:36:00.001Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+- pixel data
+modified_time: '2015-12-15T14:36:39.185Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7509962723442344142
+blogger_orig_url: https://dbritch.blogspot.com/2015/12/accessing-image-pixel-data-in_15.html
+---
+
+<p><a href="http://www.davidbritch.com/2015/11/accessing-image-pixel-data-in.html">Previously</a>, I’ve described a basic architecture for accessing and manipulating pixel data from a Xamarin.Forms project. A Xamarin.Forms PCL project defines the <strong>IBitmap</strong> interface, which specifies the operations that must be implemented in each platform-specific project to access and manipulate pixel data. I then <a href="http://www.davidbritch.com/2015/12/accessing-image-pixel-data-in.html">explained</a> the operation of the <strong>Bitmap</strong> class in the Xamarin.Forms.iOS project, which implements the <strong>IBitmap</strong> interface.</p>
+<p>In this blog post I’ll explain the operation of the <strong>Bitmap</strong> class in the Xamarin.Forms Android project, which implements the <strong>IBitmap</strong> interface. The <a href="https://developer.xamarin.com/guides/cross-platform/xamarin-forms/dependency-service/">DependencyService</a> can be used to invoke a method from the Xamarin.Forms PCL project, which in turn invokes <strong>IBitmap</strong> operations.</p>
+<p><strong>Disclaimer</strong>: The code featured here is alpha code, so all the usual caveats apply.</p>
+<h3>Implementation</h3>
+<p>The following code shows the <strong>Bitmap</strong> class implemented on Android:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:cb017c61-092a-4644-ba2e-3fe32fae7cd5" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 814px; height: 1329px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">class</span><span style="color: #000000;"> Bitmap : IBitmap</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">Android.Graphics.Bitmap</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">{
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">const</span><span style="color: #000000;"> </span><span style="color: #0000FF;">byte</span><span style="color: #000000;"> bytesPerPixel </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">4</span><span style="color: #000000;">;
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">readonly</span><span style="color: #000000;"> </span><span style="color: #0000FF;">int</span><span style="color: #000000;"> height;
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">readonly</span><span style="color: #000000;"> </span><span style="color: #0000FF;">int</span><span style="color: #000000;"> width;
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">[] pixelData;
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">    Android.Graphics.Bitmap bitmap;
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">string</span><span style="color: #000000;"> photoFile;
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> Bitmap (</span><span style="color: #0000FF;">string</span><span style="color: #000000;"> photo)
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">        photoFile </span><span style="color: #000000;">=</span><span style="color: #000000;"> photo;
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">        var options </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> BitmapFactory.Options {
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">            InJustDecodeBounds </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">true</span><span style="color: #000000;">
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">        };
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">
+</span><span style="color: #008080;">17</span> <span style="color: #000000;">        </span><span style="color: #008000;">//</span><span style="color: #008000;"> Bitmap will be null because InJustDecodeBounds = true</span><span style="color: #008000;">
+</span><span style="color: #008080;">18</span> <span style="color: #008000;"></span><span style="color: #000000;">        bitmap </span><span style="color: #000000;">=</span><span style="color: #000000;"> BitmapFactory.DecodeFile (photoFile, options);
+</span><span style="color: #008080;">19</span> <span style="color: #000000;">        width </span><span style="color: #000000;">=</span><span style="color: #000000;"> options.OutWidth;
+</span><span style="color: #008080;">20</span> <span style="color: #000000;">        height </span><span style="color: #000000;">=</span><span style="color: #000000;"> options.OutHeight;
+</span><span style="color: #008080;">21</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">22</span> <span style="color: #000000;">
+</span><span style="color: #008080;">23</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> ToPixelArray ()
+</span><span style="color: #008080;">24</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">25</span> <span style="color: #000000;">        bitmap </span><span style="color: #000000;">=</span><span style="color: #000000;"> BitmapFactory.DecodeFile (photoFile);
+</span><span style="color: #008080;">26</span> <span style="color: #000000;">
+</span><span style="color: #008080;">27</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">int</span><span style="color: #000000;"> size </span><span style="color: #000000;">=</span><span style="color: #000000;"> width </span><span style="color: #000000;">*</span><span style="color: #000000;"> height </span><span style="color: #000000;">*</span><span style="color: #000000;"> bytesPerPixel;
+</span><span style="color: #008080;">28</span> <span style="color: #000000;">        pixelData </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">[size];
+</span><span style="color: #008080;">29</span> <span style="color: #000000;">        var byteBuffer </span><span style="color: #000000;">=</span><span style="color: #000000;"> Java.Nio.ByteBuffer.AllocateDirect (size);
+</span><span style="color: #008080;">30</span> <span style="color: #000000;">        bitmap.CopyPixelsToBuffer (byteBuffer);
+</span><span style="color: #008080;">31</span> <span style="color: #000000;">        Marshal.Copy (byteBuffer.GetDirectBufferAddress (), pixelData, </span><span style="color: #800080;">0</span><span style="color: #000000;">, size);
+</span><span style="color: #008080;">32</span> <span style="color: #000000;">        byteBuffer.Dispose ();
+</span><span style="color: #008080;">33</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">34</span> <span style="color: #000000;">
+</span><span style="color: #008080;">35</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> TransformImage (Func</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">double</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> pixelOperation)
+</span><span style="color: #008080;">36</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">37</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">byte</span><span style="color: #000000;"> r, g, b;
+</span><span style="color: #008080;">38</span> <span style="color: #000000;">
+</span><span style="color: #008080;">39</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">try</span><span style="color: #000000;"> {
+</span><span style="color: #008080;">40</span> <span style="color: #000000;">            </span><span style="color: #008000;">//</span><span style="color: #008000;"> Pixel data order is RGBA</span><span style="color: #008000;">
+</span><span style="color: #008080;">41</span> <span style="color: #008000;"></span><span style="color: #000000;">            </span><span style="color: #0000FF;">for</span><span style="color: #000000;"> (</span><span style="color: #0000FF;">int</span><span style="color: #000000;"> i </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">0</span><span style="color: #000000;">; i </span><span style="color: #000000;">&lt;</span><span style="color: #000000;"> pixelData.Length; i </span><span style="color: #000000;">+=</span><span style="color: #000000;"> bytesPerPixel) {
+</span><span style="color: #008080;">42</span> <span style="color: #000000;">                r </span><span style="color: #000000;">=</span><span style="color: #000000;"> pixelData [i];
+</span><span style="color: #008080;">43</span> <span style="color: #000000;">                g </span><span style="color: #000000;">=</span><span style="color: #000000;"> pixelData [i </span><span style="color: #000000;">+</span><span style="color: #000000;"> </span><span style="color: #800080;">1</span><span style="color: #000000;">];
+</span><span style="color: #008080;">44</span> <span style="color: #000000;">                b </span><span style="color: #000000;">=</span><span style="color: #000000;"> pixelData [i </span><span style="color: #000000;">+</span><span style="color: #000000;"> </span><span style="color: #800080;">2</span><span style="color: #000000;">];
+</span><span style="color: #008080;">45</span> <span style="color: #000000;">
+</span><span style="color: #008080;">46</span> <span style="color: #000000;">                </span><span style="color: #008000;">//</span><span style="color: #008000;"> Leave alpha value intact</span><span style="color: #008000;">
+</span><span style="color: #008080;">47</span> <span style="color: #008000;"></span><span style="color: #000000;">                pixelData [i] </span><span style="color: #000000;">=</span><span style="color: #000000;"> pixelData [i </span><span style="color: #000000;">+</span><span style="color: #000000;"> </span><span style="color: #800080;">1</span><span style="color: #000000;">] </span><span style="color: #000000;">=</span><span style="color: #000000;"> pixelData [i </span><span style="color: #000000;">+</span><span style="color: #000000;"> </span><span style="color: #800080;">2</span><span style="color: #000000;">] </span><span style="color: #000000;">=</span><span style="color: #000000;"> (</span><span style="color: #0000FF;">byte</span><span style="color: #000000;">)pixelOperation (r, g, b);
+</span><span style="color: #008080;">48</span> <span style="color: #000000;">            }
+</span><span style="color: #008080;">49</span> <span style="color: #000000;">        } </span><span style="color: #0000FF;">catch</span><span style="color: #000000;"> (Exception ex) {
+</span><span style="color: #008080;">50</span> <span style="color: #000000;">            Console.WriteLine (ex.Message);
+</span><span style="color: #008080;">51</span> <span style="color: #000000;">        }
+</span><span style="color: #008080;">52</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">53</span> <span style="color: #000000;">
+</span><span style="color: #008080;">54</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> Android.Graphics.Bitmap ToImage ()
+</span><span style="color: #008080;">55</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">56</span> <span style="color: #000000;">        var byteBuffer </span><span style="color: #000000;">=</span><span style="color: #000000;"> Java.Nio.ByteBuffer.AllocateDirect (width </span><span style="color: #000000;">*</span><span style="color: #000000;"> height </span><span style="color: #000000;">*</span><span style="color: #000000;"> bytesPerPixel);
+</span><span style="color: #008080;">57</span> <span style="color: #000000;">        Marshal.Copy (pixelData, </span><span style="color: #800080;">0</span><span style="color: #000000;">, byteBuffer.GetDirectBufferAddress (), width </span><span style="color: #000000;">*</span><span style="color: #000000;"> height </span><span style="color: #000000;">*</span><span style="color: #000000;"> bytesPerPixel);
+</span><span style="color: #008080;">58</span> <span style="color: #000000;">        bitmap.CopyPixelsFromBuffer (byteBuffer);
+</span><span style="color: #008080;">59</span> <span style="color: #000000;">        byteBuffer.Dispose ();
+</span><span style="color: #008080;">60</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> bitmap;
+</span><span style="color: #008080;">61</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">62</span> <span style="color: #000000;">
+</span><span style="color: #008080;">63</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> Dispose ()
+</span><span style="color: #008080;">64</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">65</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (bitmap </span><span style="color: #000000;">!=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">) {
+</span><span style="color: #008080;">66</span> <span style="color: #000000;">            bitmap.Recycle ();
+</span><span style="color: #008080;">67</span> <span style="color: #000000;">            bitmap.Dispose ();
+</span><span style="color: #008080;">68</span> <span style="color: #000000;">            bitmap </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">;
+</span><span style="color: #008080;">69</span> <span style="color: #000000;">        }
+</span><span style="color: #008080;">70</span> <span style="color: #000000;">        pixelData </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">null</span><span style="color: #000000;">;
+</span><span style="color: #008080;">71</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">72</span> <span style="color: #000000;">}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The constructor reads and decodes the photo. Setting the <strong>InJustDecodeBounds</strong> property to <strong>true</strong> while decoding avoids allocating memory for the bitmap and hence returns <strong>null</strong> for the bitmap object, but does set the <strong>OutWidth</strong>, and <strong>OutHeight</strong> properties. This technique allows you to read the dimensions and type of the image data prior to construction (and memory allocation) of the bitmap.</p>
+<p>The <strong>ToPixelArray</strong> method is used to read the photo to a <strong>Android.Graphics.Bitmap</strong> and convert it to a byte array of raw pixel data. The image’s pixel data is placed into a continuous sequence of bytes. It’s formatted as 32 bits per pixel, with each pixel being composed of a Red, Green, Blue, and Alpha channel. It’s then copied to the <strong>pixelData</strong> array. Therefore, the <strong>pixelData</strong> array stores each pixel over four array elements (R, G, B, A). It’s likely that the <strong>pixelData</strong> array is not required, and that the pixel data can be accessed directly through the <strong>ByteBuffer</strong> instance. I’ll be exploring this performance optimization at a later date.</p>
+<p>The <strong>TransformImage</strong> method is used to perform an imaging operation on the pixel data, such as convert to greyscale. The method specifies a <strong>Func</strong> parameter that’s used to perform a per-pixel operation. The <strong>Func</strong> is passed from the Xamarin.Forms PCL project into the method, and operates on each pixel component. At the moment the <strong>TransformImage</strong> method is hard-coded to place the result of the <strong>Func</strong> into each pixel component. This is purely for my own test purposes, for implementing a <strong>ConvertToGreyscale Func. </strong>It can easily be modified to not duplicate the result of the <strong>Func</strong> across all four colour components.</p>
+<p>The <strong>ToImage</strong> method is then used to place the transformed pixel data back into the <strong>Android.Graphics.Bitmap</strong>. Note that the <strong>ToImage</strong> method creates a 32 bit image. An overload could be provided to create a 8 bit image.</p>
+<p>A <strong>Dispose</strong> method is also provided to clean up the <strong>Android.Graphics.Bitmap</strong> instance and byte array of pixels.</p>
+<p>The <strong>Bitmap</strong> class can then be invoked as follows:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:927a9ecf-d081-4af4-9d2e-139a74d3a3a7" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 814px; height: 286px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #0000FF;">public</span><span style="color: #000000;"> Task</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">Stream</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> TransformPhotoAsync (Func</span><span style="color: #000000;">&lt;</span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">byte</span><span style="color: #000000;">, </span><span style="color: #0000FF;">double</span><span style="color: #000000;">&gt;</span><span style="color: #000000;"> pixelOperation)
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">{
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> Task.Run (() </span><span style="color: #000000;">=&gt;</span><span style="color: #000000;"> {
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">        var bitmap </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> Bitmap (photoPath);
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">        bitmap.ToPixelArray ();
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">        bitmap.TransformImage (pixelOperation);
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">        var androidBitmap </span><span style="color: #000000;">=</span><span style="color: #000000;"> bitmap.ToImage ();
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">        var memoryStream </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">new</span><span style="color: #000000;"> MemoryStream ();
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">        androidBitmap.Compress (Android.Graphics.Bitmap.CompressFormat.Jpeg, </span><span style="color: #800080;">80</span><span style="color: #000000;">, memoryStream);
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">        memoryStream.Seek (</span><span style="color: #800080;">0L</span><span style="color: #000000;">, SeekOrigin.Begin);
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">        bitmap.Dispose ();
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> (Stream)memoryStream;
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">    });
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>A new <strong>Bitmap</strong> instance is created, with the path to the photo being passed into the constructor. The photo is read and converted to an array of pixels, transformed by the <strong>pixelOperation Func</strong>, and then converted into a new <strong>Android.Graphics.Bitmap</strong> before being returned for display by a Xamarin.Forms <strong>Image</strong> control. All of this work is wrapped in a <strong>Task.Run</strong> in order for it to be executed on a background thread.</p>
+<h3>Summary</h3>
+<p>This blog post has described how to access and manipulate pixel data in a Xamarin.Forms Android project, by implementing the <strong>Bitmap</strong> class. The <strong>Bitmap</strong> class implements the <strong>IBitmap</strong> interface that’s provided by the Xamarin.Forms PCL project. My next blog post will explain the implementation of the <strong>IBitmap</strong> interface in WinRT.</p>

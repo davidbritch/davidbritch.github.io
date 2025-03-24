@@ -1,0 +1,171 @@
+---
+layout: post
+title: Enterprise Application Patterns using Xamarin.Forms
+date: '2017-06-05T15:05:00.000+01:00'
+author: David Britch
+tags:
+- ".NET"
+- Validation
+- MVVM
+- C#
+- Xamarin
+- Unit testing
+- Design patterns
+modified_time: '2017-06-19T17:27:17.731+01:00'
+thumbnail: https://1.bp.blogspot.com/-krFJNGNLsNc/WUEDNdUnF0I/AAAAAAAAC0c/fPUncfl7k0ES3MmViRWbLpwAeVl8EhtSgCLcBGAs/s72-c/cover.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8029963812750998943
+blogger_orig_url: https://dbritch.blogspot.com/2017/06/enterprise-application-patterns-using.html
+---
+
+For the last few months I've been working on a Xamarin.Forms guide, about building cross-platform enterprise apps. The first edition of the guide is now published as an eBook, and can be downloaded <a href="https://aka.ms/xamarinpatternsebook">here</a>, or by clicking the image below.<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+</div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://aka.ms/xamarinpatternsebook"><img border="0" data-original-height="792" data-original-width="612" height="640" src="https://1.bp.blogspot.com/-krFJNGNLsNc/WUEDNdUnF0I/AAAAAAAAC0c/fPUncfl7k0ES3MmViRWbLpwAeVl8EhtSgCLcBGAs/s640/cover.png" width="494" /></a><span id="goog_84470982"></span><span id="goog_84470983"></span><a href="https://www.blogger.com/"></a></div>
+<div class="separator" style="clear: both; text-align: center;">
+<br /></div>
+<h3>
+What's it all about?</h3>
+<div class="Paragraph">
+The eBook provides guidance on building cross-platform
+enterprise apps using Xamarin.Forms. It focuses on providing architectural
+guidance for developing adaptable, maintainable, and testable Xamarin.Forms
+enterprise apps. Guidance is provided on how to implement MVVM, dependency
+injection, navigation, validation, and configuration management, while
+maintaining loose coupling. In addition, there's also guidance on performing
+authentication and authorization with IdentityServer, accessing data from
+containerized microservices, and unit testing.<o:p></o:p><br />
+<br />
+<div class="Paragraph">
+The guide comes with source code for the <a href="https://github.com/dotnet-architecture/eShopOnContainers/tree/master/src/Mobile">eShopOnContainers
+mobile app</a>, and source code for the <a href="https://github.com/dotnet-architecture/eShopOnContainers">eShopOnContainers
+reference app</a>. The eShopOnContainers mobile app is a cross-platform
+enterprise app developed using Xamarin.Forms, which connects to a series of
+containerized microservices known as the eShopOnContainers reference app.<br />
+<br />
+<h3>
+Who's it intended for?</h3>
+<div class="Paragraph">
+The guide is aimed at readers who are already familiar with Xamarin.Forms. For a detailed introduction to Xamarin.Forms, see the&nbsp;<a href="https://developer.xamarin.com/guides/xamarin-forms/">Xamarin.Forms documentation</a>&nbsp;on the Xamarin Developer Center, and&nbsp;<a href="https://aka.ms/xamebook">Creating Mobile Apps with Xamarin.Forms</a>.</div>
+<div class="Paragraph">
+<br /></div>
+<div class="Paragraph">
+The guide is complementary to&nbsp;<a href="https://aka.ms/microservicesebook">.NET Microservices: Architecture for Containerized .NET Applications</a>, which focuses on developing and deploying containerized microservices.</div>
+<br /></div>
+</div>
+<h3>
+What's in the sample application?</h3>
+<div class="Paragraph">
+The guide includes a sample application, eShopOnContainers,
+that's an online store that includes the following functionality:</div>
+<div class="List-Bulleted2" style="mso-list: l0 level1 lfo1;">
+</div>
+<ul>
+<li>Authenticating
+and authorizing against a backend service.</li>
+<li>Browsing
+a catalog of shirts, coffee mugs, and other marketing items.</li>
+<li>Filtering
+the catalog.</li>
+<li>Ordering
+items from the catalog.</li>
+<li>Viewing
+the user's order history.</li>
+<li>Configuration
+of settings.</li>
+</ul>
+The following diagram provides a high-level overview of the
+architecture of the sample application:
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://4.bp.blogspot.com/-ZV1QjNcRsbI/WTVf4aeT3pI/AAAAAAAACzw/n4EGbKl4rNgIBYjO3UliNhS3ll0Qm-rnQCLcB/s1600/architecture.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="847" data-original-width="1600" height="338" src="https://4.bp.blogspot.com/-ZV1QjNcRsbI/WTVf4aeT3pI/AAAAAAAACzw/n4EGbKl4rNgIBYjO3UliNhS3ll0Qm-rnQCLcB/s640/architecture.png" width="640" /></a></div>
+The sample application ships with three client apps:
+<br />
+<ul>
+<li>An
+MVC application developed with ASP.NET Core.</li>
+<li>A
+Single Page Application (SPA) developed with Angular 2 and Typescript. This
+approach for web applications avoids performing a round-trip to the server with
+each operation.</li>
+<li>A
+mobile app developed with Xamarin.Forms, which supports iOS, Android, and the
+Universal Windows Platform (UWP).</li>
+</ul>
+For information about the web applications, see <a href="http://aka.ms/WebAppEbook">Architecting and Developing Modern Web
+Applications with ASP.NET Core and Microsoft Azure</a>.<br />
+<br />
+<div class="Paragraph">
+The sample application includes the following backend
+services:</div>
+<ul>
+<li>An
+identity microservice, which uses ASP.NET Core Identity and IdentityServer.</li>
+<li>A
+catalog microservice, which is a data-driven create, read, update, delete
+(CRUD) service that consumes an SQL Server database using EntityFramework Core.</li>
+<li>An
+ordering microservice, which is a domain-driven service that uses domain-driven
+design patterns.</li>
+<li><span style="color: #0078d7; font-family: &quot;symbol&quot;; font-size: 11pt;"><span style="font-family: &quot;times new roman&quot;; font-size: 7pt; line-height: normal;">&nbsp;</span></span>A
+basket microservice, which is a data-driven CRUD service that uses Redis Cache.</li>
+</ul>
+<span style="text-indent: 0cm;">These
+backend services are implemented as microservices using ASP.NET Core MVC, and
+are deployed as unique containers within a single Docker host. Collectively,
+these backend services are referred to as the eShopOnContainers reference
+application. Client apps communicate with the backend services through a
+Representational State Transfer (REST) web interface.&nbsp;</span><span style="text-indent: 0cm;">For
+information about the implementation of the backend services, see </span><a href="https://aka.ms/microservicesebook" style="text-indent: 0cm;">.NET Microservices: Architecture for
+Containerized .NET Applications</a><span style="text-indent: 0cm;">.</span><br />
+<br />
+<h3>
+What's the mobile app?</h3>
+<div class="Paragraph">
+The guide focuses
+on building cross-platform enterprise apps using Xamarin.Forms, and uses the
+eShopOnContainers mobile app as an example. The following screenshots show the pages from the
+eShopOnContainers mobile app that provide the functionality outlined earlier:</div>
+<div class="Paragraph">
+<br /></div>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://4.bp.blogspot.com/-QYqdVQpsdDA/WTVgZA-z8qI/AAAAAAAACz0/HbcUecoT_LEPvKH3DgkF3nnfPISTWV3RgCLcB/s1600/screenshots.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="747" data-original-width="855" height="556" src="https://4.bp.blogspot.com/-QYqdVQpsdDA/WTVgZA-z8qI/AAAAAAAACz0/HbcUecoT_LEPvKH3DgkF3nnfPISTWV3RgCLcB/s640/screenshots.png" width="640" /></a></div>
+<div class="Paragraph">
+<br /></div>
+<div class="Paragraph">
+The mobile app consumes the backend services provided by the
+eShopOnContainers reference application. However, it can be configured to
+consume data from mock services for those who wish to avoid deploying the
+backend services.</div>
+<br />
+<div class="Paragraph">
+The eShopOnContainers mobile app exercises the following
+Xamarin.Forms functionality:</div>
+<ul>
+<li>XAML</li>
+<li>Controls</li>
+<li>Bindings</li>
+<li>Converters</li>
+<li>Styles</li>
+<li>Animations</li>
+<li>Commands</li>
+<li>Behaviors</li>
+<li>Triggers</li>
+<li>Effects</li>
+<li>Custom
+Renderers</li>
+<li>MessagingCenter</li>
+<li>Custom
+Controls</li>
+</ul>
+<div class="Paragraph">
+In addition, unit tests are
+provided for some of the classes in the eShopOnContainers mobile app. For more information about this functionality, see the <a href="https://developer.xamarin.com/guides/xamarin-forms/">Xamarin.Forms
+documentation</a> on the Xamarin Developer Center, and <a href="https://aka.ms/xamebook">Creating Mobile Apps with Xamarin.Forms</a>.</div>
+<br />
+<h3>
+Where can I get help and provide feedback?</h3>
+This project has a community site, on which
+you can post questions, and provide feedback. The community site is located at <a href="https://github.com/dotnet-architecture/eShopOnContainers">https://github.com/dotnet-architecture/eShopOnContainers</a>.
+Alternatively, feedback about the eBook can be emailed to <a href="mailto:dotnet-architecture-ebooks-feedback@service.microsoft.com">dotnet-architecture-ebooks-feedback@service.microsoft.com</a>.

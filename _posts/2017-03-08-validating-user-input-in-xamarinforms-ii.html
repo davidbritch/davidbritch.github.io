@@ -1,0 +1,54 @@
+---
+layout: post
+title: Validating User Input in Xamarin.Forms II
+date: '2017-03-08T09:12:00.000Z'
+author: David Britch
+tags:
+- ".NET"
+- Validation
+- C#
+- Xamarin
+modified_time: '2017-03-08T09:12:41.932Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3567236056629203118
+blogger_orig_url: https://dbritch.blogspot.com/2017/03/validating-user-input-in-xamarinforms-ii.html
+---
+
+<p><a href="http://www.davidbritch.com/2017/03/validating-user-input-in-xamarinforms.html" target="_blank">Previously</a> I introduced a high-level overview of an approach to validating user input in Xamarin.Forms. This approach involves specifying validation rules on model objects, invoking validation when a model property values changes, and then displaying any error messages. In this blog post I’m going to explore how to specify validation rules on model objects.</p>
+<h3>Specifying Validation Rules</h3>
+<p>Validation rules are specified by adding data annotation attributes, that derive from the <a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a> class, to properties in model classes that require validation.</p>
+<p>The following code example shows the <strong>User</strong> class, where the properties are decorated with validation attributes: </p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6c4b4ed4-7128-48e8-9f1e-75c847054b86" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 851px; height: 489px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">class</span><span style="color: #000000;"> User : ValidatableBase
+{
+    </span><span style="color: #0000FF;">string</span><span style="color: #000000;"> forename, surname;
+    </span><span style="color: #0000FF;">const</span><span style="color: #000000;"> </span><span style="color: #0000FF;">string</span><span style="color: #000000;"> NAMESREGEXPATTERN </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">@&quot;</span><span style="color: #800000;">\A\p{L}+([\p{Zs}\-][\p{L}]+)*\z</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">;
+
+    [Required(ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field is required.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    [RegularExpression(NAMESREGEXPATTERN, ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field contains invalid characters.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    [StringLength(</span><span style="color: #800080;">10</span><span style="color: #000000;">, 
+                  MinimumLength </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">2</span><span style="color: #000000;">, 
+                  ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field requires a minimum of 2 characters and a maximum of 10.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">string</span><span style="color: #000000;"> Forename
+    {
+        </span><span style="color: #0000FF;">get</span><span style="color: #000000;"> { </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> forename; }
+        </span><span style="color: #0000FF;">set</span><span style="color: #000000;"> { SetProperty(</span><span style="color: #0000FF;">ref</span><span style="color: #000000;"> forename, value); }
+    }
+
+    [Required(ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field is required.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    [RegularExpression(NAMESREGEXPATTERN, ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field contains invalid characters.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    [StringLength(</span><span style="color: #800080;">15</span><span style="color: #000000;">, 
+                  MinimumLength </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800080;">2</span><span style="color: #000000;">, 
+                  ErrorMessage </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">This field requires a minimum of 2 characters and a maximum of 15.</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)]
+    </span><span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">string</span><span style="color: #000000;"> Surname
+    {
+        </span><span style="color: #0000FF;">get</span><span style="color: #000000;"> { </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> surname; }
+        </span><span style="color: #0000FF;">set</span><span style="color: #000000;"> { SetProperty(</span><span style="color: #0000FF;">ref</span><span style="color: #000000;"> surname, value); }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>Required</strong> attribute specifies that a validation failure occurs if the field is null, contains an empty string, or contains only white-space characters. The <strong>RegularExpression</strong> attribute specifies that a property must match the regular expression given by the <strong>NAMESREGEXPATTERN </strong>constant. This regular expression allows user input to consist of all unicode name characters as well as spaces and hyphens, as long as the spaces and hyphens don’t occur in sequences and are not leading or trailing characters. The <strong>StringLength</strong> attribute specifies the minimum and maximum length of characters that are allowed. Each attribute also sets an <strong>ErrorMessage</strong> property, which stores the error message to be displayed if validation fails.</p>
+<p>It’s worth browsing the <a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations(v=vs.110).aspx" target="_blank">DataAnnotations</a> namespace in order to discover all the different validation attributes. As well as the general attributes mentioned above, it contains specific attributes capable of validating email addresses, credit card numbers, and phone numbers. In addition, it also provides a <strong>CustomValidation</strong> attribute, which specifies an application-provided method to be invoked to validate the property whenever a value is assigned to it.</p>
+<p>To participate in validation a model class must derive from the <strong>ValidatableBase</strong> class, so that model property values will be validated when they change. In my next blog post I’ll explore this topic further. In the meantime, the code can be downloaded from <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">GitHub</a>.</p>

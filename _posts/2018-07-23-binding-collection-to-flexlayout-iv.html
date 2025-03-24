@@ -1,0 +1,47 @@
+---
+layout: post
+title: Binding a Collection to a FlexLayout IV
+date: '2018-07-23T15:50:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-07-23T15:51:08.267+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5152144221811614684
+blogger_orig_url: https://dbritch.blogspot.com/2018/07/binding-collection-to-flexlayout-iv.html
+---
+
+<p><a href="https://www.davidbritch.com/2018/07/binding-collection-to-flexlayout-iii.html" target="_blank">Previously</a>, I explained how to extend the <strong>ExtendedFlexLayout</strong> class so that it can bind to collections that change at runtime, with the changes being reflected on screen. While the <strong>ExtendedFlexLayout</strong> class only handles items being added to and removed from the bound collection at runtime, I mentioned that it could easily be extended to handle additional actions by examining the <strong>Action</strong> property.</p> <p>In this blog post, I’ll examine how to extend the <strong>ExtendedFlexLayout</strong> class so that it can respond to the bound collection being cleared at runtime. The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutObservableCollectionClear" target="_blank">GitHub</a>.</p> <h3>Clearing the Collection</h3> <p>The <strong>ExtendedFlexLayout</strong> can respond to the bound collection being cleared at runtime in the handler for the <strong>CollectionChanged</strong> event:</p> <p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:a86a265d-e1d4-4a84-9786-530daaab1dde" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 445px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnItemsSourceCollectionChanged(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> sender, NotifyCollectionChangedEventArgs e)
+{
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (e.Action </span><span style="color: rgb(0, 0, 0);">==</span><span style="color: rgb(0, 0, 0);"> NotifyCollectionChangedAction.Reset)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Items cleared</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        Children.Clear();
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (e.OldItems </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Items removed</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        Children.RemoveAt(e.OldStartingIndex);
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (e.NewItems </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Item(s) added.</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        </span><span style="color: rgb(0, 0, 255);">for</span><span style="color: rgb(0, 0, 0);"> (</span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> i </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">; i </span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);"> e.NewItems.Count; i</span><span style="color: rgb(0, 0, 0);">++</span><span style="color: rgb(0, 0, 0);">)
+        {
+            var item </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> e.NewItems[i];
+            var view </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> CreateChildView(item);
+            Children.Insert(e.NewStartingIndex </span><span style="color: rgb(0, 0, 0);">+</span><span style="color: rgb(0, 0, 0);"> i, view);
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>At the top of the event handler, the received <strong>NotifyCollectionChangedEventArgs</strong> are used to determine whether to clear the <strong>ExtendedFlexLayout</strong> control. The event argument data includes an <strong>Action</strong> property, which identifies whether an item has been added, moved, removed, replaced, or whether the collection has been cleared. If the bound collection has been cleared, the <strong>Action</strong> property will be set to <strong>NotifyCollectionChangedAction.Reset</strong> and the control responds by clearing the <strong>Children</strong> collection. When the <strong>Children</strong> collection has been cleared, both the <strong>OldItems</strong> (the list of items that have been replaced, removed, or moved within the collection) and <strong>NewItems</strong> (the list of items that have been added to the collection) properties will be <strong>null</strong>, so the code for adding and removing items won’t be executed on this invocation of the event handler.</p>
+<h3>Summary</h3>
+<p>This blog post has explained how to further extend the <strong>ExtendedFlexLayout</strong> class so that it can respond to the bound collection being cleared at runtime. This is achieved by clearing the <strong>Children</strong> collection of the control when the <strong>Action</strong> property of the handler that responds to the <strong>CollectionChanged</strong> event is equal to <strong>NotifyCollectionChangedAction.Reset</strong>.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutObservableCollectionClear" target="_blank">GitHub</a>.</p>

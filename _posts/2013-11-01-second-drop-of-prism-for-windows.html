@@ -1,0 +1,16 @@
+---
+layout: post
+title: Second drop of Prism for the Windows Runtime for Windows 8.1
+date: '2013-11-01T09:31:00.001Z'
+author: David Britch
+tags:
+- Prism for the Windows Runtime
+- Windows 8
+- WinRT
+- Windows Store app
+modified_time: '2013-11-01T09:31:43.047Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-546768759561676386
+blogger_orig_url: https://dbritch.blogspot.com/2013/11/second-drop-of-prism-for-windows.html
+---
+
+<p>The second drop of Prism for the Windows Runtime, and the associated AdventureWorks Shopper reference implementation, can be found on <a href="https://prismwindowsruntime.codeplex.com/releases/view/114214">codeplex</a>. To compile the code you’ll need Windows 8.1 and Visual Studio 2013. Obviously the usual caveats apply to the download, as it’s not final released code yet.</p> <h3>Change Log</h3> <ul> <li>Applied the latest UX guidelines to all pages. In the Portrait view state content scrolls vertically.</li> <li>Prism’s <strong>SettingsCharmActionItem</strong> class deprecated.</li> <li>The <strong>GoBackCommand</strong> has moved into the <strong>VisualStateAwarePage</strong> class.</li> <li>The custom <strong>AutoRotatingGridView</strong> control is used on the <strong>HubPage</strong> and <strong>CategoryPage</strong>.</li> <li>Blend behaviors and actions have been used in the reference implementation:</li> <ul> <li>The <strong>TopAppBarUserControl</strong> and the <strong>ShoppingCartTabUserControl </strong>use the<strong> EventTriggerBehavior</strong> and the <strong>NavigateToPageAction</strong> interaction.</li> <li>The <strong>HubgPage</strong>, <strong>CategoryPage</strong>, <strong>GroupDetailPage</strong>, and the <strong>SearchResultsPage</strong> use the <strong>EventTriggerBehavior</strong> and the <strong>NavigateWithEventArgsToPageAction</strong> custom interaction. The <strong>NavigateWithEventArgsToPageAction</strong> custom interaction replaces the <strong>ListViewItemClickedToAction</strong> attached behavior, which is now deprecated.</li> <li>The <strong>GroupDetailPage</strong> and the <strong>SearchResultsPage</strong> use the <strong>IncrementalUpdateBehaviour</strong>.</li></ul></ul>  

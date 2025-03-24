@@ -1,0 +1,48 @@
+---
+layout: post
+title: 'Xamarin.Forms Behaviors: EventHandlerBehavior and SetPropertyAction'
+date: '2016-03-14T12:15:00.000Z'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2016-03-14T12:16:51.635Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8273280396657466682
+blogger_orig_url: https://dbritch.blogspot.com/2016/03/xamarinforms-behaviors_14.html
+---
+
+<p><a href="http://www.davidbritch.com/2016/03/xamarinforms-behaviors.html">Previously</a>, I demonstrated using the <strong>EventHandlerBehavior</strong> and <strong>InvokeMethodAction</strong> classes to invoke one or more methods when an event fires. The <a href="http://www.davidbritch.com/2016/02/behaviours-library-for-xamarinforms_24.html">Behaviors Library for Xamarin.Forms</a> has the notion of behaviors and actions. A behavior is attached to a control and listens for something to happen, such as an event firing. When the “something” happens, it triggers one or more actions, such as invoking a method or command. Actions are invoked by behaviors and executed on a selected control.</p> <p>In this blog post, I’ll demonstrate using the <strong>EventHandlerBehavior</strong> and <strong>SetPropertyAction</strong> classes to set one or more properties when an event fires.</p> <h3>Setting a Property when an Event Fires</h3> <p>The <strong>EventHandlerBehavior</strong> class listens for a specified event to occur, and executes one or more actions in response. It requires you to set an <strong>EventName</strong> property to the event that you want the behavior to listen to, and an <strong>Actions</strong> property to one or more actions that should be executed in response to the event firing.</p> <p>The <strong>SetPropertyAction</strong> class sets a specified property when invoked. It requires you to set a <strong>TargetObject</strong> property to an <strong>object</strong> that exposes the property of interest, a <strong>PropertyName</strong> property to the name of the property to be set, and a <strong>Value</strong> property to an <strong>object</strong> that represents the property value to be set.</p> <p>The following code example shows an example of using the <strong>EventHandlerBehavior</strong> and <strong>SetPropertyAction</strong> classes to set three properties:</p> <div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:b805b516-df3a-4b47-80da-2fd4cd202f30" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 340px; width: 826px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">local:SetPropertyDemoPageViewModel </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    
+</span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button </span><span style="color: #ff0000">x:Name</span><span style="color: #0000ff">="button"</span><span style="color: #ff0000"> Text</span><span style="color: #0000ff">="Change Page and ViewModel Properties"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="Clicked"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:SetPropertyAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{x:Reference boxView}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                         PropertyName</span><span style="color: #0000ff">="Color"</span><span style="color: #ff0000"> 
+                                         Value</span><span style="color: #0000ff">="</span><span style="color: #808000">{StaticResource ColorRed}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:SetPropertyAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                         PropertyName</span><span style="color: #0000ff">="MessageText"</span><span style="color: #ff0000"> 
+                                         Value</span><span style="color: #0000ff">="Message text changed"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:SetPropertyAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{x:Reference button}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                         PropertyName</span><span style="color: #0000ff">="IsEnabled"</span><span style="color: #ff0000"> 
+                                         Value</span><span style="color: #0000ff">="false"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>When the <strong>Button.Clicked</strong> event fires, three properties are set:</p>
+<ul>
+<li>The <strong>Color</strong> property of the <strong>BoxView</strong> instance is set to red. 
+<li>The<strong> MessageText</strong> property of the <strong>SetPropertyDemoPageViewModel</strong> instance is set to “Message text changed”. In this case, the <strong>TargetObject</strong> property specifies that the <strong>BindingContext</strong> exposes the property of interest. Therefore, the <strong>SetPropertyAction</strong> class will search the <strong>BindingContext</strong> of the attached control for the property, which in this case is inherited from the page. 
+<li>The <strong>IsEnabled</strong> property of the <strong>Button</strong> instance is set to <strong>false</strong>.</li></ul>
+<p>Note that the <strong>Actions</strong> property of the <strong>EventHandlerBehavior</strong> instance is set indirectly by creating the <strong>SetPropertyAction</strong> instances as children of the <strong>EventHandlerBehavior</strong> instance.</p>
+<p>The advantage of combining the <strong>EventHandlerBehavior</strong> and <strong>SetPropertyAction</strong> classes is that properties of controls can easily be set without having to bind them to ViewModel properties, therefore removing boiler-plate properties from ViewModels, and boiler-plate property setting code from code-behind files.</p>
+<p>The sample application that this code comes from can be downloaded from <a href="https://github.com/davidbritch/behaviors">GitHub</a>.</p>
+<h3>Summary</h3>
+<p>The <strong>EventHandlerBehavior</strong> class listens for a specified event to occur, and executes one or more actions in response. The <strong>SetPropertyAction</strong> class sets a specified property when invoked. The advantage of combining the <strong>EventHandlerBehavior</strong> and <strong>SetPropertyAction</strong> classes is that properties of controls can easily be set without having to bind them to ViewModel properties, therefore removing boiler-plate properties from ViewModels, and boiler-plate property setting code from code-behind files.</p>

@@ -1,0 +1,16 @@
+---
+layout: post
+title: 'How to: Build Testable Windows Phone Applications'
+date: '2012-09-25T09:14:00.001+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Windows Phone
+- Unit testing
+modified_time: '2012-09-25T09:15:16.117+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-566555160891860080
+blogger_orig_url: https://dbritch.blogspot.com/2012/09/how-to-build-testable-windows-phone.html
+---
+
+<p>An <a href="http://britchmond.blogspot.co.uk/2012/09/building-testable-windows-phone.html">earlier post</a> outlined the <a href="http://msdn.microsoft.com/en-us/library/hh830877">Building Testable Windows Phone Applications</a> guidance I’d developed with <a href="http://msdn.microsoft.com/en-us/practices/bb190332.aspx">Patterns and Practices</a>. At the time of release of this guidance I wrote an <a href="http://blogs.msdn.com/b/ukmsdn/archive/2012/02/16/building-testable-windows-phone-applications.aspx">article</a> for the <a href="http://blogs.msdn.com/b/ukmsdn/">MSDN Flash UK</a> newsletter, that demonstrates how to build a testable Windows Phone application that consumes accelerometer data.</p> <p>The key to building testable Windows Phone applications is to abstract the classes in the Windows Phone SDK. An interface can be generated for the required class in the Windows Phone SDK that contains the desired functionality for your application. Adapters, which are wrapper classes that implement the generated interface, can also be generated. Adapter classes pass parameters and return values to and from the underlying Windows Phone SDK class. The adapter translates calls to its interface into calls to the original interface. Creating adapters enables you to write loosely coupled testable code.</p>For more information, see <a href="http://blogs.msdn.com/b/ukmsdn/archive/2012/02/16/building-testable-windows-phone-applications.aspx">How to: Build Testable Windows Phone Applications</a>.   

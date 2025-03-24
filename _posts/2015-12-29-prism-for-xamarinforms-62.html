@@ -1,0 +1,68 @@
+---
+layout: post
+title: Prism for Xamarin.Forms 6.2
+date: '2015-12-29T15:37:00.000Z'
+author: David Britch
+tags:
+- C#
+- Prism
+- Xamarin
+modified_time: '2015-12-29T15:37:40.278Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-6975744704005931007
+blogger_orig_url: https://dbritch.blogspot.com/2015/12/prism-for-xamarinforms-62.html
+---
+
+<p>In early December, <a href="http://brianlagunas.com/">Brian Lagunas</a> announced a pre-release of Prism for Xamarin.Forms 6.2.0. Over Christmas I checked it out and here’s what I found out.</p>
+<p>The big changes are around bootstrapping and navigation, with simplification and new features being the order of the day. There are also some breaking changes, in that <strong>INavigationPageProvider</strong> and <strong>NavigationPageProviderAttribute</strong> have both been removed as they are no longer needed due to the <strong>INavigationService</strong> handling the majority of navigation scenarios now.</p>
+<h3>Bootstrapping</h3>
+<p>The <strong>CreateMainPage</strong> and <strong>InitializeShell</strong> methods are now deprecated, with the <strong>OnInitialized</strong> override now being used to navigate to the initial page of the app:</p>
+
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:a3e78154-715b-4905-81d6-16fd0107f673" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 814px; height: 219px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #0000FF;">public</span><span style="color: #000000;"> </span><span style="color: #0000FF;">class</span><span style="color: #000000;"> Bootstrapper : UnityBootstrapper
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">{
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">protected</span><span style="color: #000000;"> </span><span style="color: #0000FF;">override</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> RegisterTypes()
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">        Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">HomePage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">    
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">    </span><span style="color: #0000FF;">protected</span><span style="color: #000000;"> </span><span style="color: #0000FF;">override</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> OnInitialized()
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">    {
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">        NavigationService.Navigate(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">HomePage</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">);
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">    }
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>The page being navigated to is registered in the <strong>RegisterTypes</strong> override, with navigation then being invoked from the <strong>OnInitialized</strong> override. As well as being a simpler app bootstrapping process, it also removes the problems with some navigation scenarios on startup, such as navigating to a <strong>MasterDetailPage</strong> and then changing the <strong>Detail</strong> page,.</p>
+<h3>Navigation</h3>
+<p>The <strong>INavigationService</strong> now supports a number of new features, including passing parameters via the <strong>GoBack</strong> method, support for URI-based navigation, and deep linking. For information about the new navigation features see <a href="http://brianlagunas.com/prism-for-xamarin-forms-6-2-0-preview/">Brian’s blog post</a>.</p>
+<p>The <strong>INavigationService</strong> now detects the type type of page being navigated from, and handles the navigation for you. For example, it will detect that navigation is originating from a <strong>MasterDetailPage</strong> and will set the <strong>MasterDetailPage.Detail</strong> property to the navigation target, instead of pushing a new page onto the navigation stack. </p>
+<p>In addition, the <strong>INavigationService</strong> supports more complex navigation scenarios. For example, imagine that you want your app to navigate to a <strong>MasterDetailPage</strong> that sets the <strong>Detail</strong> page to a <strong>NavigationPage</strong>, and then displays a <strong>ContentPage</strong>. As with all Prism-based apps, the pages must first be registered with the navigation service:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e1f39203-7834-4b8d-b69a-eb6efc7fdd11" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 814px; height: 162px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;">1</span> <span style="color: #0000FF;">protected</span><span style="color: #000000;"> </span><span style="color: #0000FF;">override</span><span style="color: #000000;"> </span><span style="color: #0000FF;">void</span><span style="color: #000000;"> RegisterTypes()
+</span><span style="color: #008080;">2</span> <span style="color: #000000;">{
+</span><span style="color: #008080;">3</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">HomePage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">4</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">MyNavigationPage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">5</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">MyMasterDetailPage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">6</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">WeekPage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">7</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">MonthPage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">8</span> <span style="color: #000000;">    Container.RegisterTypeForNavigation</span><span style="color: #000000;">&lt;</span><span style="color: #000000;">YearPage</span><span style="color: #000000;">&gt;</span><span style="color: #000000;">();
+</span><span style="color: #008080;">9</span> <span style="color: #000000;">}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>After registering the pages, it then becomes possible to perform the required navigation in one call:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:960eb77e-1d78-408f-936d-b3f37b3b6df7" class="wlWriterEditableSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style=" width: 814px; height: 26px;background-color:White;overflow: hidden;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;">1</span> <span style="color: #000000;">NavigationService.Navigate(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">MyMasterDetailPage/MyNavigationPage/MonthPage</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">);</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The result of the navigation will show a <strong>MasterDetailPage</strong> whose <strong>Detail</strong> page is a <strong>NavigationPage</strong>, with the <strong>MonthPage</strong> being pushed onto the navigation stack for display. In addition, the navigation stack will be as expected, and so backwards navigation will return down the stack.</p>
+<p>For me this is the killer feature in this release of Prism for Xamarin.Forms, as when combined with the URI-based navigation support and parameter passing, it becomes possible to launch a Xamarin.Forms app from a website and deep link to content within the app, while maintaining the correct navigation stack.</p>
+<h3>Summary</h3>
+<p>The original release of Prism for Xamarin.Forms was a welcome addition to the Prism family, and simplified the development of Xamarin.Forms apps. However, it was slightly restrictive in some areas, but with the preview release of Prism for Xamarin.Forms 6.2.0 the majority of these restrictions no longer exist.</p>
+<p>While not everyone is a believer in using such libraries in mobile app development, Prism for Xamarin.Forms offers a clear productivity boost and simplifies the development of fully unit testable Xamarin.Forms apps that have a clean separation of concerns. Going forward I’ll certainly be using it for my own app development efforts, and I look forward to it moving from a pre-release to a stable release.</p>

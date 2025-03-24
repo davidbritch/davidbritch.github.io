@@ -1,0 +1,162 @@
+---
+layout: post
+title: Adventures in ARKit - animation
+date: '2021-03-18T09:47:00.003Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-18T09:48:22.405Z'
+thumbnail: https://1.bp.blogspot.com/-ajxQXZYX4RA/YEuVpYzcS5I/AAAAAAAADTo/UhyMSeqoY2AqE5L77aMbJyfzyakkAz1WQCNcBGAsYHQ/s72-c/IMG_0985.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3731704668200131391
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-animation.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-respond-to-touch.html">previous blog post</a> I discussed how to interact with nodes in a scene, using touch. This involved creating gesture recognisers and adding them to the <code>ARSCNView</code> instance with the <code>AddGestureRecognizer</code> method.</p>
+<p>In this blog post I’ll examine animating a node in a scene. I originally wanted to animate a sphere, to make it rotate. However, it can be difficult to observe a sphere with a diffuse colour rotating. Therefore, I switched to rotating a cube.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/05%20-%20ARKitFun%20-%20Animation">GitHub</a>.</p>
+<h2 id="animate-a-node">Animate a node</h2>
+<p>In order to add a cube to the scene, I created a <code>CubeNode</code> type that derives from <code>SCNNode</code>:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun<span class="token punctuation">.</span>Nodes
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">CubeNode</span> <span class="token punctuation">:</span> SCNNode
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token function">CubeNode</span><span class="token punctuation">(</span><span class="token keyword">float</span> size<span class="token punctuation">,</span> UIColor color<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNMaterial material <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNMaterial</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>Diffuse<span class="token punctuation">.</span>Contents <span class="token operator">=</span> color<span class="token punctuation">;</span>
+
+            SCNBox geometry <span class="token operator">=</span> SCNBox<span class="token punctuation">.</span><span class="token function">Create</span><span class="token punctuation">(</span>size<span class="token punctuation">,</span> size<span class="token punctuation">,</span> size<span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            geometry<span class="token punctuation">.</span>Materials <span class="token operator">=</span> <span class="token keyword">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> material <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            SCNNode node <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNNode</span>
+            <span class="token punctuation">{</span>
+                Geometry <span class="token operator">=</span> geometry
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            <span class="token function">AddChildNode</span><span class="token punctuation">(</span>node<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>CubeNode</code> constructor takes a <code>float</code> argument that represents the size of each side of the cube, and a <code>UIColor</code> argument that represents the colour of the cube. The constructor creates the materials and geometry for the cube, before creating a <code>SCNNode</code> and assigning the geometry to its <code>Geometry</code> property, and adds the node as a child node to the <code>SCNNode</code>.</p>
+<p>Nodes can be animated with the <code>SCNAction</code> type, which represents a reusable animation that changes attributes of any node you attach it to. <code>SCNAction</code> objects are created with specific class methods, and are executed by calling a node object’s <code>RunAction</code> method, passing the action object as an argument.</p>
+<p>For example, the following code creates a rotate action and applies it to a <code>CubeNode</code>:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp">SCNAction rotateAction <span class="token operator">=</span> SCNAction<span class="token punctuation">.</span><span class="token function">RotateBy</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span>Math<span class="token punctuation">.</span>PI<span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">5</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// X,Y,Z,secs</span>
+CubeNode cubeNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CubeNode</span><span class="token punctuation">(</span><span class="token number">0.1f</span><span class="token punctuation">,</span> UIColor<span class="token punctuation">.</span>Blue<span class="token punctuation">)</span><span class="token punctuation">;</span>
+cubeNode<span class="token punctuation">.</span><span class="token function">RunAction</span><span class="token punctuation">(</span>rotateAction<span class="token punctuation">)</span><span class="token punctuation">;</span>
+sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>cubeNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>In this example, the <code>CubeNode</code> is rotated 360 degrees on the Y axis over 5 seconds. To rotate the cube indefinitely, use the following code:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp">SCNAction rotateAction <span class="token operator">=</span> SCNAction<span class="token punctuation">.</span><span class="token function">RotateBy</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span>Math<span class="token punctuation">.</span>PI<span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">5</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+SCNAction indefiniteRotation <span class="token operator">=</span> SCNAction<span class="token punctuation">.</span><span class="token function">RepeatActionForever</span><span class="token punctuation">(</span>rotateAction<span class="token punctuation">)</span><span class="token punctuation">;</span>
+CubeNode cubeNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CubeNode</span><span class="token punctuation">(</span><span class="token number">0.1f</span><span class="token punctuation">,</span> UIColor<span class="token punctuation">.</span>Blue<span class="token punctuation">)</span><span class="token punctuation">;</span>
+cubeNode<span class="token punctuation">.</span><span class="token function">RunAction</span><span class="token punctuation">(</span>indefiniteRotation<span class="token punctuation">)</span><span class="token punctuation">;</span>
+sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>cubeNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>In this example, the <code>CubeNode</code> is rotated 360 degrees on the Y axisover 5 seconds. That is, it takes 5 seconds to complete a full 360 degree rotation. Then the animation is looped.</p>
+<p>This code can be generalised into an extension method that can be called on any <code>SCNNode</code> type:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun<span class="token punctuation">.</span>Extensions
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">class</span> <span class="token class-name">SCNNodeExtensions</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">void</span> <span class="token function">AddRotationAction</span><span class="token punctuation">(</span><span class="token keyword">this</span> SCNNode node<span class="token punctuation">,</span> SCNActionTimingMode mode<span class="token punctuation">,</span> <span class="token keyword">double</span> secs<span class="token punctuation">,</span> <span class="token keyword">bool</span> loop <span class="token operator">=</span> <span class="token keyword">false</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNAction rotateAction <span class="token operator">=</span> SCNAction<span class="token punctuation">.</span><span class="token function">RotateBy</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span>Math<span class="token punctuation">.</span>PI<span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> secs<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            rotateAction<span class="token punctuation">.</span>TimingMode <span class="token operator">=</span> mode<span class="token punctuation">;</span>
+
+            <span class="token keyword">if</span> <span class="token punctuation">(</span>loop<span class="token punctuation">)</span>
+            <span class="token punctuation">{</span>
+                SCNAction indefiniteRotation <span class="token operator">=</span> SCNAction<span class="token punctuation">.</span><span class="token function">RepeatActionForever</span><span class="token punctuation">(</span>rotateAction<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                node<span class="token punctuation">.</span><span class="token function">RunAction</span><span class="token punctuation">(</span>indefiniteRotation<span class="token punctuation">,</span> <span class="token string">"rotation"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+            <span class="token keyword">else</span>
+                node<span class="token punctuation">.</span><span class="token function">RunAction</span><span class="token punctuation">(</span>rotateAction<span class="token punctuation">,</span> <span class="token string">"rotation"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>AddRotationAction</code> extension method adds a rotate animation to the specified <code>SCNNode</code>. The <code>SCNActionTimingMode</code> argument defines the easing function for the animation. The <code>secs</code> argument defines the number of seconds to complete a full rotation of the node, and the <code>loop</code> argument defines whether to animate the node indefinitely. The <code>RunAction</code> method calls both specify a string <code>key</code> argument. This enables the animation to be stopped programmatically by specifying the <code>key</code> as an argument to the <code>RemoveAction</code> method.</p>
+<p>The <code>ViewDidAppear</code> method in the <code>ViewController</code> class can then be modified to add a <code>CubeNode</code> to the scene, and animate it:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> System<span class="token punctuation">.</span>Linq<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Extensions<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Nodes<span class="token punctuation">;</span>
+<span class="token keyword">using</span> CoreGraphics<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+        <span class="token keyword">readonly</span> ARSCNView sceneView<span class="token punctuation">;</span>
+        <span class="token keyword">const</span> <span class="token keyword">float</span> size <span class="token operator">=</span> <span class="token number">0.1f</span><span class="token punctuation">;</span>
+        <span class="token keyword">const</span> <span class="token keyword">float</span> zPosition <span class="token operator">=</span> <span class="token operator">-</span><span class="token number">0.5f</span><span class="token punctuation">;</span>
+        <span class="token keyword">bool</span> isAnimating<span class="token punctuation">;</span>        
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+        
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+            <span class="token punctuation">{</span>
+                AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                PlaneDetection <span class="token operator">=</span> ARPlaneDetection<span class="token punctuation">.</span>Horizontal<span class="token punctuation">,</span>
+                WorldAlignment <span class="token operator">=</span> ARWorldAlignment<span class="token punctuation">.</span>Gravity
+            <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            CubeNode cubeNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CubeNode</span><span class="token punctuation">(</span>size<span class="token punctuation">,</span> UIColor<span class="token punctuation">.</span>Blue<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            cubeNode<span class="token punctuation">.</span>Position <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> zPosition<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>cubeNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            UITapGestureRecognizer tapGestureRecognizer <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">UITapGestureRecognizer</span><span class="token punctuation">(</span>HandleTapGesture<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span><span class="token function">AddGestureRecognizer</span><span class="token punctuation">(</span>tapGestureRecognizer<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+        <span class="token punctuation">}</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+</code></pre>
+<p>In this example, a blue <code>CubeNode</code> is created and positioned in the scene at (0,0,-0.5). In addition, a <code>UITapGestureRecognizer</code> is added to the scene.</p>
+<p>The following code example shows the <code>HandleTapGesture</code> method:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">void</span> <span class="token function">HandleTapGesture</span><span class="token punctuation">(</span>UITapGestureRecognizer sender<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    SCNView areaPanned <span class="token operator">=</span> sender<span class="token punctuation">.</span>View <span class="token keyword">as</span> SCNView<span class="token punctuation">;</span>
+    CGPoint point <span class="token operator">=</span> sender<span class="token punctuation">.</span><span class="token function">LocationInView</span><span class="token punctuation">(</span>areaPanned<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult<span class="token punctuation">[</span><span class="token punctuation">]</span> hitResults <span class="token operator">=</span> areaPanned<span class="token punctuation">.</span><span class="token function">HitTest</span><span class="token punctuation">(</span>point<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">SCNHitTestOptions</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult hit <span class="token operator">=</span> hitResults<span class="token punctuation">.</span><span class="token function">FirstOrDefault</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>hit <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        SCNNode node <span class="token operator">=</span> hit<span class="token punctuation">.</span>Node<span class="token punctuation">;</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>node <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token operator">!</span>isAnimating<span class="token punctuation">)</span>
+            <span class="token punctuation">{</span>
+                node<span class="token punctuation">.</span><span class="token function">AddRotationAction</span><span class="token punctuation">(</span>SCNActionTimingMode<span class="token punctuation">.</span>Linear<span class="token punctuation">,</span> <span class="token number">3</span><span class="token punctuation">,</span> <span class="token keyword">true</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                isAnimating <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+            <span class="token keyword">else</span>
+            <span class="token punctuation">{</span>
+                node<span class="token punctuation">.</span><span class="token function">RemoveAction</span><span class="token punctuation">(</span><span class="token string">"rotation"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                isAnimating <span class="token operator">=</span> <span class="token keyword">false</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>                    
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>In this example, the node on which the tap gesture was detected is determined. If the node isn’t being animated, an indefinite rotation <code>SCNAction</code> is added to the node, which fully rotates the node every 3 seconds. Then, provided that the node is being animated, when it’s tapped again the animation ceases by calling the <code>RemoveAction</code> method, specifying the key value for the action.</p>
+<p>The overall effect is that when the app runs, tapping on the node animates it. When animated, tapping on the node stops the animation. Then a new animation will begin on the subsequent tap:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-ajxQXZYX4RA/YEuVpYzcS5I/AAAAAAAADTo/UhyMSeqoY2AqE5L77aMbJyfzyakkAz1WQCNcBGAsYHQ/s1136/IMG_0985.PNG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1136" data-original-width="640" height="320" src="https://1.bp.blogspot.com/-ajxQXZYX4RA/YEuVpYzcS5I/AAAAAAAADTo/UhyMSeqoY2AqE5L77aMbJyfzyakkAz1WQCNcBGAsYHQ/s320/IMG_0985.PNG" /></a></div>
+<p>As I mentioned at the beginning of this blog post, I originally wanted to rotate a sphere, with a view to creating a rotating earth. However, it can be difficult to see a sphere with a diffuse colour rotating.</p>
+<p>In my next blog post I’ll discuss rotating a sphere to create a rotating earth.</p>
+

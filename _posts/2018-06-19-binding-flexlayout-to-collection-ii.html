@@ -1,0 +1,125 @@
+---
+layout: post
+title: Binding a FlexLayout to a Collection II
+date: '2018-06-19T09:40:00.001+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-06-19T09:43:18.639+01:00'
+thumbnail: https://lh3.googleusercontent.com/-zrnYumxplNI/WyjBwj9G3CI/AAAAAAAAC40/_oRzEKRm7MMp1tUvdA7Hte7Y37OERiaEQCHMYCw/s72-c/Simulator-Screen-Shot---iPhone-8---2?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3354237370171647020
+blogger_orig_url: https://dbritch.blogspot.com/2018/06/binding-flexlayout-to-collection-ii.html
+---
+
+<p><a href="https://www.davidbritch.com/2018/06/binding-flexlayout-to-collection.html" target="_blank">Previously</a>, I explained how to extend the <strong>FlexLayout</strong> class with <strong>ItemsSource</strong> and <strong>ItemTemplate</strong> properties, so that it can bind to data stored in a collection. However, the resulting <strong>ExtendedFlexLayout</strong> class is only a minimally viable implementation as it omits a number of required features.</p> <p>One of the missing features is that it doesn’t allow a <strong>DataTemplateSelector</strong> to choose a <strong>DataTemplate</strong> at runtime based on the value of a bound property. Instead it only permits a single defined <strong>DataTemplate</strong> to be used.</p> <p>The purpose of this blog post is to further extend the <strong>ExtendedFlexLayout</strong> class so that it does allow a <strong>DataTemplateSelector</strong> to choose a <strong>DataTemplate</strong> at runtime. This enables scenarios such as the <strong>ExtendedFlexLayout</strong> binding to a collection of objects where the appearance of each object can be chosen at runtime by a data template selector returning a particular <strong>DataTemplate</strong>.</p> <p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutDTS" target="_blank">GitHub</a>.</p> <h3>Adding DataTemplateSelector Support</h3> <p>As I explained <a href="https://www.davidbritch.com/2018/06/binding-flexlayout-to-collection.html" target="_blank">previously</a>, the <strong>ExtendedFlexLayout</strong> class has a <strong>CreateChildView</strong> method, which is called for each item in the collection that the <strong>ItemsSource</strong> property binds to, to load the <strong>DataTemplate</strong> referenced by the <strong>ItemTemplate</strong> property and set its binding context: </p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:9c3cff2f-84ab-4bee-933d-3870d6a5d19e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 91px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">View CreateChildView(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> item)
+{
+    ItemTemplate.SetValue(BindableObject.BindingContextProperty, item);
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (View)ItemTemplate.CreateContent();
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method can be extended to support a <strong>DataTemplateSelector</strong> choosing a <strong>DataTemplate</strong> at runtime:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ea14b093-0696-47c7-87d6-478ade3a99ab" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 276px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">View CreateChildView(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> item)
+{
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (ItemTemplate </span><span style="color: rgb(0, 0, 255);">is</span><span style="color: rgb(0, 0, 0);"> DataTemplateSelector)
+    {
+        var dts </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> ItemTemplate </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> DataTemplateSelector;
+        var itemTemplate </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> dts.SelectTemplate(item, </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">);
+        itemTemplate.SetValue(BindableObject.BindingContextProperty, item);
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (View)itemTemplate.CreateContent();
+    }
+    </span><span style="color: rgb(0, 0, 255);">else</span><span style="color: rgb(0, 0, 0);">
+    {
+        ItemTemplate.SetValue(BindableObject.BindingContextProperty, item);
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (View)ItemTemplate.CreateContent();
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This additional code checks if the <strong>ItemTemplate</strong> property references a class that inherits from <strong>DataTemplateSelector</strong>. If it is, it calls the <strong>DataTemplateSelector.SelectTemplate</strong> method to return the particular <strong>DataTemplate</strong>. Then, as before, the <strong>DataTemplate</strong> is loaded and its binding context is set.</p>
+<h3>Consuming the ExtendedFlexLayout</h3>
+<p>A data template selector is implemented by creating a class that inherits from <strong>DataTemplateSelector</strong>. The <strong>OnSelectTemplate</strong> method is then overridden to return a particular <strong>DataTemplate</strong>, as shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:d482b768-27ec-4da0-8507-dd96d6ce6087" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 186px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> MonkeyDataTemplateSelector : DataTemplateSelector
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> DataTemplate NormalMonkeyTemplate { </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);">; </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);">; }
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> DataTemplate CynicalMonkeyTemplate { </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);">; </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);">; }
+
+    </span><span style="color: rgb(0, 0, 255);">protected</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">override</span><span style="color: rgb(0, 0, 0);"> DataTemplate OnSelectTemplate(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> item, BindableObject container)
+    {
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> ((Monkey)item).Name.Contains(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Face-Palm</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">) </span><span style="color: rgb(0, 0, 0);">?</span><span style="color: rgb(0, 0, 0);"> CynicalMonkeyTemplate : NormalMonkeyTemplate; 
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Here, the <strong>OnSelectTemplate</strong> method returns the appropriate template based on the value of the <strong>Name</strong> property. The template to return is the template referenced by the <strong>NormalMonkeyTemplate</strong> property or the <strong>CynicalMonkeyTemplate</strong>, which are set when consuming the <strong>MonkeyDataTemplateSelector</strong>.</p>
+<p>The <strong>MonkeyDataTemplateSelector</strong> is instantiated by declaring it as a resource:</p>
+
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e39174bc-0abd-4efa-983b-c98271cf36ce" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 658px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ContentPage.Resources</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Style </span><span style="color: rgb(255, 0, 0);">x:Key</span><span style="color: rgb(0, 0, 255);">="normalMonkeyFrame"</span><span style="color: rgb(255, 0, 0);"> TargetType</span><span style="color: rgb(0, 0, 255);">="Frame"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="BackgroundColor"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="LightYellow"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="BorderColor"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="Blue"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="Margin"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="10"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="CornerRadius"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="15"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Style</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Style </span><span style="color: rgb(255, 0, 0);">x:Key</span><span style="color: rgb(0, 0, 255);">="cynicalMonkeyFrame"</span><span style="color: rgb(255, 0, 0);"> TargetType</span><span style="color: rgb(0, 0, 255);">="Frame"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="BackgroundColor"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="Red"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="BorderColor"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="Black"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="Margin"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="10"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Setter </span><span style="color: rgb(255, 0, 0);">Property</span><span style="color: rgb(0, 0, 255);">="CornerRadius"</span><span style="color: rgb(255, 0, 0);"> Value</span><span style="color: rgb(0, 0, 255);">="15"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Style</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">    
+    ...
+
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">DataTemplate </span><span style="color: rgb(255, 0, 0);">x:Key</span><span style="color: rgb(0, 0, 255);">="normalMonkeyTemplate"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Frame </span><span style="color: rgb(255, 0, 0);">WidthRequest</span><span style="color: rgb(0, 0, 255);">="300"</span><span style="color: rgb(255, 0, 0);">
+               HeightRequest</span><span style="color: rgb(0, 0, 255);">="480"</span><span style="color: rgb(255, 0, 0);">
+               Style</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource normalMonkeyFrame}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            ...
+        </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Frame</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">DataTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">DataTemplate </span><span style="color: rgb(255, 0, 0);">x:Key</span><span style="color: rgb(0, 0, 255);">="cynicalMonkeyTemplate"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Frame </span><span style="color: rgb(255, 0, 0);">WidthRequest</span><span style="color: rgb(0, 0, 255);">="300"</span><span style="color: rgb(255, 0, 0);">
+               HeightRequest</span><span style="color: rgb(0, 0, 255);">="480"</span><span style="color: rgb(255, 0, 0);">
+               Style</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource cynicalMonkeyFrame}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            ...
+        </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Frame</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">DataTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:MonkeyDataTemplateSelector </span><span style="color: rgb(255, 0, 0);">x:Key</span><span style="color: rgb(0, 0, 255);">="monkeyDataTemplateSelector"</span><span style="color: rgb(255, 0, 0);">
+                                      NormalMonkeyTemplate</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource normalMonkeyTemplate}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);">
+                                      CynicalMonkeyTemplate</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource cynicalMonkeyTemplate}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">ContentPage.Resources</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>The <strong>ResourceDictionary</strong> above defines two <strong>DataTemplate</strong> instances, and a <strong>MonkeyDataTemplateSelector</strong> instance. The <strong>MonkeyDataTemplateSelector</strong> instance sets its <strong>NormalMonkeyTemplate</strong> and <strong>CynicalMonkeyTemplate</strong> properties to the appropriate <strong>DataTemplate</strong> instances through the <strong>StaticResource</strong> markup extension. The two <strong>DataTemplates</strong> are largely identical, aside from setting different colours on the <strong>Frame</strong> instances.</p>
+<p>The <strong>MonkeyDataTemplateSelector</strong> instance is consumed by assigning it to the <strong>ExtendedFlexLayout.ItemTemplate</strong> property:</p>
+<p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:4231ce7c-613b-45ba-a1a8-a895e273017b" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 60px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout </span><span style="color: rgb(255, 0, 0);">ItemsSource</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Monkeys}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> 
+                          ItemTemplate</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource monkeyDataTemplateSelector}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>At runtime, the <strong>MonkeyDataTemplateSelector.OnSelectTemplate</strong> method is called (by the <strong>ExtendedFlexLayout</strong> class via the <strong>DataTemplateSelector.SelectTemplate</strong> method call) for each of the items in the underlying collection, with the call passing the data object as the <strong>item</strong> parameter. The <strong>DataTemplate</strong> that is returned by the method is then applied to that object.</p>
+<p>The following screenshots show the result of the <strong>ExtendedFlexLayout</strong> applying the <strong>MonkeyDataTemplateSelector</strong> to each object in the underlying collection:</p><p><br></p>
+<p><img width="274" height="484" title="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.05" style="border: 0px currentcolor; padding-top: 0px; padding-right: 0px; padding-left: 0px; display: inline; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.05" src="https://lh3.googleusercontent.com/-zrnYumxplNI/WyjBwj9G3CI/AAAAAAAAC40/_oRzEKRm7MMp1tUvdA7Hte7Y37OERiaEQCHMYCw/Simulator-Screen-Shot---iPhone-8---2?imgmax=800" border="0"><img width="274" height="484" title="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.10" style="border: 0px currentcolor; padding-top: 0px; padding-right: 0px; padding-left: 0px; display: inline; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.10" src="https://lh3.googleusercontent.com/-2gOW1htG9OQ/WyjBxECf9jI/AAAAAAAAC44/i5zKLVb6CmQWhl2kleD0NN1mwMY1OQKcACHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800" border="0"><img width="274" height="484" title="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.15" style="border: 0px currentcolor; padding-top: 0px; padding-right: 0px; padding-left: 0px; display: inline; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-06-18 at 16.09.15" src="https://lh3.googleusercontent.com/-VubbjAjTqzc/WyjByFyLwKI/AAAAAAAAC48/U3vZ_9PcCXEBwL1itMc3GpDmWLUSB6EPwCHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B2%255D?imgmax=800" border="0"></p>
+<p>Any <strong>Monkey</strong> object that has a <strong>Name</strong> property that contains “Face-Palm” is displayed with a red background, as a warning to be wary of cynical monkeys, with the remaining objects being displayed with a a light yellow background.</p>
+<h3>Summary</h3>
+<p>This blog post has explained how to further extend the <strong>ExtendedFlexLayout</strong> class so that it allows a <strong>DataTemplateSelector</strong> to choose a <strong>DataTemplate</strong> at runtime. This enables scenarios such as the <strong>ExtendedFlexLayout</strong> binding to a collection of objects where the appearance of each object can be chosen at runtime by the data template selector returning a particular <strong>DataTemplate</strong>. My next blog post will look at further extending the <strong>ExtendedFlexLayout</strong> class with additional functionality.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutDTS" target="_blank">GitHub</a>.</p>

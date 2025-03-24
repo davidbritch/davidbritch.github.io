@@ -1,0 +1,13 @@
+---
+layout: post
+title: Prism for the Windows Runtime Templates for Visual Studio 2015
+date: '2015-08-12T12:31:00.000+01:00'
+author: David Britch
+tags:
+- Prism for the Windows Runtime
+modified_time: '2015-08-12T12:32:01.072+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-2116411498869805269
+blogger_orig_url: https://dbritch.blogspot.com/2015/08/prism-for-windows-runtime-templates-for.html
+---
+
+<p>I was recently asked if I had any plans to update the Prism WinRT templates to support VS2015. To be honest I was surprised that anyone is still using Prism WinRT, so had no plans to update the templates to VS2015. But in order to support people who’ve stuck with it, I decided to do an update. My intention was to add support for VS2015 to the existing template VSIX. However, this turned out not to be possible for two reasons:</p> <ul> <li>Creating a Prism WinRT project relies on the Microsoft.VisualStudio.WinRT.TemplateWizards assembly. VS2012/2013 used v12 of this assembly, with VS2015 using v14. This presents a problem as a machine that only has VS2015 will only have the v14 assembly.</li> <li>The location where the Prism WinRT project and item templates should reside has changed in VS2015.</li></ul> <p>The simplest solution was to build a new VSIX for VS2015. </p> <p>I tried to upload the VSIX to the Visual Studio Gallery and it fails to upload, despite working when installing locally. This is because some of the paths in the VSIX would be too long if it’s installed on an Windows XP machine. While I can shorten the path a little, it’s not enough to pass Visual Studio Gallery validation. There are other solutions available but it’s not worth investing the time to solve the issue for these templates, when there’ll be a brand new set for Prism 6.</p> <p>So in the meantime, if you want Prism WinRT templates for VS2015 you can download them from <a href="http://1drv.ms/1NpZRNo">here</a>.</p>  

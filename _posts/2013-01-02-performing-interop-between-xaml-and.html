@@ -1,0 +1,17 @@
+---
+layout: post
+title: Performing interop between XAML and DirectX
+date: '2013-01-02T11:58:00.000Z'
+author: David Britch
+tags:
+- DirectX
+- C++/CX
+- Windows 8
+- WinRT
+- Windows Store app
+modified_time: '2013-05-03T17:02:40.911+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-1971384132350720579
+blogger_orig_url: https://dbritch.blogspot.com/2013/01/performing-interop-between-xaml-and.html
+---
+
+<p>If you’re developing a Windows Store app using C++ and XAML and you want to use DirectX to improve performance or to reuse the assets in your app more effectively, a quickstart I’ve worked on may be just what you need.</p> <p>The quickstart uses the <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.media.imaging.surfaceimagesource.aspx">SurfaceImageSource</a> class, which allows you to compose DirectX graphics within a XAML element. If you need to display XAML in front of a full-screen DirectX swap chain you should use the <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.controls.swapchainbackgroundpanel.aspx">SwapChaingBackgroundPanel</a> class instead. For more info see <a href="http://msdn.microsoft.com/en-us/library/windows/apps/hh825871.aspx">DirectX and XAML interop</a>.</p> <p>The accompanying sample app allows you to load an image, which is displayed on screen. A ripple effect can then be applied to the image by choosing any point on the image to start the ripple effect. If you choose another point while the ripple is animating, the center of the ripples moves to that location. You can also drag the ripple while it’s animating. The DirectXRipple Visual Studio solution contains one project, which includes these key classes:</p> <ul> <li><strong>App </strong>class. Specifies the entry point for the app and handles activation and suspension events.  <li><strong>BasicReaderWriter</strong> class. Reads the data from the compiled ripple effect pixel shader.  <li><strong>BasicTimer</strong> class. A timer class that’s used to drive the render loop of the app.  <li><strong>D2DImageSource</strong> class. The interop class between DirectX and XAML.  <li><strong>MainPage</strong> class. Defines a XAML-based page class that contains a simple user interface.  <li><strong>RippleEffect</strong> class. Implements the ripple effect as a wrapper around a pixel shader.  <li><strong>RippleImageSource</strong> class. Inherits from the <strong>D2DImageSource </strong>class and applies the moving ripple effect to the image.  <li><strong>WICImage</strong> class. Uses the Windows Imaging Component (WIC) to load and display an image.</li></ul> <p>With little or no modification, you can reuse many of these classes in another app. You can also adapt the organization and ideas that these classes provide.</p> <p>The quickstart can be viewed <a href="http://hilo.codeplex.com/wikipage?title=XAML%20and%20DirectX%20Interop%20QuickStart">here</a>.</p>  

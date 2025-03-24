@@ -1,0 +1,125 @@
+---
+layout: post
+title: Making a POST request to IdentityServer's token endpoint from a Xamarin client
+date: '2017-06-23T14:18:00.001+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- IdentityServer
+- Xamarin
+modified_time: '2017-06-23T14:25:39.708+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3328153249993193853
+blogger_orig_url: https://dbritch.blogspot.com/2017/06/making-post-request-to-identityservers.html
+---
+
+I <a href="http://www.davidbritch.com/2017/06/enterprise-application-patterns-using.html" target="_blank">recently</a> had to implement a hybrid authorisation flow from a Xamarin client to IdentityServer 4. This involved making a browser request to IdentityServer’s <a href="http://docs.identityserver.io/en/release/endpoints/authorize.html" target="_blank">authorize</a> endpoint to retrieve an authorisation code, and then making a REST request to IdentityServer’s <a href="http://docs.identityserver.io/en/release/endpoints/token.html" target="_blank">token</a> endpoint, exchanging the authorisation code for an access token.<br />
+<br />
+However, I found the documentation on the <a href="http://docs.identityserver.io/en/release/endpoints/token.html" target="_blank">token</a> endpoint to be slightly lacking. It states that the token endpoint requires a POST request, along with a series of URL query parameters:<br />
+<div class="wlWriterEditableSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:db5af343-1ded-4e61-aae4-471f47739f0d" style="display: inline; float: none; margin: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px;">
+<pre style="background-color: white; height: 150px; overflow: hidden; width: 851px;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: black;">POST </span><span style="color: black;">/</span><span style="color: black;">connect</span><span style="color: black;">/</span><span style="color: black;">token
+
+    client_id</span><span style="color: black;">=</span><span style="color: black;">client1</span><span style="color: black;">&amp;</span><span style="color: black;">
+    client_secret</span><span style="color: black;">=</span><span style="color: black;">secret</span><span style="color: black;">&amp;</span><span style="color: black;">
+    grant_type</span><span style="color: black;">=</span><span style="color: black;">authorization_code</span><span style="color: black;">&amp;</span><span style="color: black;">
+    code</span><span style="color: black;">=</span><span style="color: black;">hdh922</span><span style="color: black;">&amp;</span><span style="color: black;">
+    redirect_uri</span><span style="color: black;">=</span><span style="color: black;">https:</span><span style="color: green;">//</span><span style="color: green;">myapp.com/callback</span></div>
+</pre>
+<!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+Every attempt at making this request failed. On top of that I wasn’t keen on sending a client secret potentially in the clear. After some digging through the IdentityServer code I was able to construct a POST request that worked for me, which I verified using <a href="https://chrome.google.com/webstore/detail/advanced-rest-client/hgmloofddffdnphfgcellkdfbfbjeloo" target="_blank">Advanced REST Client</a>. My POST request was:<br />
+<div class="wlWriterEditableSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:56210f41-14cc-4a6c-a136-41b105b8d251" style="display: inline; float: none; margin: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px;">
+<pre style="background-color: white; height: 110px; overflow: hidden; width: 851px;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: black;">POST </span><span style="color: black;">/</span><span style="color: black;">connect</span><span style="color: black;">/</span><span style="color: black;">token
+
+    grant_type</span><span style="color: black;">=</span><span style="color: black;">authorization_code</span><span style="color: black;">&amp;</span><span style="color: black;">
+    code</span><span style="color: black;">=</span><span style="color: black;">hdh922</span><span style="color: black;">&amp;</span><span style="color: black;">
+    redirect_uri</span><span style="color: black;">=</span><span style="color: black;">https:</span><span style="color: green;">//</span><span style="color: green;">myapp.com/callback</span></div>
+</pre>
+</div>
+The value of the <strong>code</strong> parameter is the authorisation code retrieved from IdentityServer’s authorize endpoint, and the value of the <strong>redirect_uri</strong> parameter is the callback URL registered with IdentityServer. Note that this isn’t the only way of making the POST request to the token endpoint, as IdentityServer permits several variations.<br />
+<br />
+So what’s happened to the <strong>client_id</strong> and <strong>client_secret</strong> query parameters listed in the first POST request? While IdentityServer can accept them as query parameters, I was unhappy about sending my client secret as a query parameter. Luckily, IdentityServer also permits both <strong>client_id</strong> and <strong>client_secret</strong> to be sent in the <strong>Authorization</strong> header of the POST request, encoded as a basic authentication value, which is what I did. For more information about basic authentication, see <a href="https://developer.xamarin.com/guides/xamarin-forms/cloud-services/authentication/rest/#Specifying_Basic_Authentication_in_a_Web_Request" target="_blank">Specifying Basic Authentication in a Web Request</a>.<br />
+<br />
+Translating this into code produces the <strong>GetTokenAsync</strong> method, which makes the request using the <strong>PostAsync</strong> method of the <strong>RequestProvider</strong> class:<br />
+<div class="wlWriterEditableSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:62db6bd9-368a-4138-89de-5b4af163ee05" style="display: inline; float: none; margin: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px;">
+<pre style="background-color: white; height: 149px; overflow: hidden; width: 851px;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: blue;">public</span><span style="color: black;"> async Task&lt;</span><span style="color: black;">UserToken&gt;</span><span style="color: black;"> GetTokenAsync(</span><span style="color: blue;">string</span><span style="color: black;"> code)
+{
+    </span><span style="color: blue;">string</span><span style="color: black;"> data </span><span style="color: black;">=</span><span style="color: black;"> </span><span style="color: blue;">string</span><span style="color: black;">.Format(</span><span style="color: maroon;">"</span><span style="color: maroon;">grant_type=authorization_code&amp;code={0}&amp;redirect_uri={1}</span><span style="color: maroon;">"</span><span style="color: black;">, code, WebUtility.UrlEncode(GlobalSetting.Instance.IdentityCallback));
+    var token </span><span style="color: black;">=</span><span style="color: black;"> await _requestProvider.PostAsync&lt;</span><span style="color: black;">UserToken&gt;</span><span style="color: black;">(GlobalSetting.Instance.TokenEndpoint, data, GlobalSetting.Instance.ClientId, GlobalSetting.Instance.ClientSecret);
+    </span><span style="color: blue;">return</span><span style="color: black;"> token;
+}</span></div>
+</pre>
+<!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+The <strong>PostAsync</strong> method in the <strong>RequestProvider</strong> class is shown in the following code example:<br />
+<div class="wlWriterEditableSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:4e96047d-6eb3-49f5-abe7-0e42d496602f" style="display: inline; float: none; margin: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px;">
+<pre style="background-color: white; height: 416px; overflow: hidden; width: 851px;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: blue;">public</span><span style="color: black;"> async Task&lt;</span><span style="color: black;">TResult&gt;</span><span style="color: black;"> PostAsync&lt;</span><span style="color: black;">TResult&gt;</span><span style="color: black;">(</span><span style="color: blue;">string</span><span style="color: black;"> uri, </span><span style="color: blue;">string</span><span style="color: black;"> data, </span><span style="color: blue;">string</span><span style="color: black;"> clientId, </span><span style="color: blue;">string</span><span style="color: black;"> clientSecret)
+{
+    HttpClient httpClient </span><span style="color: black;">=</span><span style="color: black;"> CreateHttpClient(</span><span style="color: blue;">string</span><span style="color: black;">.Empty);
+
+    </span><span style="color: blue;">if</span><span style="color: black;"> (</span><span style="color: black;">!</span><span style="color: blue;">string</span><span style="color: black;">.IsNullOrWhiteSpace(clientId) &amp;&amp;</span><span style="color: black;"> </span><span style="color: black;">!</span><span style="color: blue;">string</span><span style="color: black;">.IsNullOrWhiteSpace(clientSecret))
+    {
+        AddBasicAuthenticationHeader(httpClient, clientId, clientSecret);
+    }
+
+    var content </span><span style="color: black;">=</span><span style="color: black;"> </span><span style="color: blue;">new</span><span style="color: black;"> StringContent(data);
+    content.Headers.ContentType </span><span style="color: black;">=</span><span style="color: black;"> </span><span style="color: blue;">new</span><span style="color: black;"> MediaTypeHeaderValue(</span><span style="color: maroon;">"</span><span style="color: maroon;">application/x-www-form-urlencoded</span><span style="color: maroon;">"</span><span style="color: black;">);
+    HttpResponseMessage response </span><span style="color: black;">=</span><span style="color: black;"> await httpClient.PostAsync(uri, content);
+
+    await HandleResponse(response);
+    </span><span style="color: blue;">string</span><span style="color: black;"> serialized </span><span style="color: black;">=</span><span style="color: black;"> await response.Content.ReadAsStringAsync();
+
+    TResult result </span><span style="color: black;">=</span><span style="color: black;"> await Task.Run(() </span><span style="color: black;">=&gt;</span><span style="color: black;">
+        JsonConvert.DeserializeObject&lt;</span><span style="color: black;">TResult&gt;</span><span style="color: black;">(serialized, _serializerSettings));
+
+    </span><span style="color: blue;">return</span><span style="color: black;"> result;
+}</span></div>
+</pre>
+<!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+After creating the <strong>HttpClient</strong> instance, the <strong>PostAsync</strong> method calls the <strong>AddBasicAuthenticationHeader</strong> method, which is shown in the following code example:<br />
+<div class="wlWriterEditableSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:17edae1e-ddfa-443a-b512-2336f1a164f0" style="display: inline; float: none; margin: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px;">
+<pre style="background-color: white; height: 214px; overflow: hidden; width: 851px;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: blue;">private</span><span style="color: black;"> </span><span style="color: blue;">void</span><span style="color: black;"> AddBasicAuthenticationHeader(HttpClient httpClient, </span><span style="color: blue;">string</span><span style="color: black;"> clientId, </span><span style="color: blue;">string</span><span style="color: black;"> clientSecret)
+{
+    </span><span style="color: blue;">if</span><span style="color: black;"> (httpClient </span><span style="color: black;">==</span><span style="color: black;"> </span><span style="color: blue;">null</span><span style="color: black;">)
+        </span><span style="color: blue;">return</span><span style="color: black;">;
+
+    </span><span style="color: blue;">if</span><span style="color: black;"> (</span><span style="color: blue;">string</span><span style="color: black;">.IsNullOrWhiteSpace(clientId) </span><span style="color: black;">||</span><span style="color: black;"> </span><span style="color: blue;">string</span><span style="color: black;">.IsNullOrWhiteSpace(clientSecret))
+        </span><span style="color: blue;">return</span><span style="color: black;">;
+
+    httpClient.DefaultRequestHeaders.Authorization </span><span style="color: black;">=</span><span style="color: black;"> </span><span style="color: blue;">new</span><span style="color: black;"> BasicAuthenticationHeaderValue(clientId, clientSecret);
+}</span></div>
+</pre>
+<!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+The <strong>AddBasicAuthenticationHeader</strong> method adds the <strong>Authorization</strong> header to the POST request, with its value being the <strong>clientId</strong> and <strong>clientSecret</strong> values encoded using basic authentication.<br />
+<br />
+Back in the <strong>PostAsync</strong> method, the other piece of the puzzle that was missing from the IdentityServer documentation is that the <strong>ContentType</strong> of the POST request must be set to <strong>application/x-www-form-urlencoded</strong>. I suspect this is the missing piece of the puzzle that caused the original request to fail.<br />
+<br />
+To see the full application from which I’ve taken this code, along with more content about using IdentityServer from a Xamarin client, see <a href="http://www.davidbritch.com/2017/06/enterprise-application-patterns-using.html" target="_blank">Enterprise Application Patterns using Xamarin.Forms</a>.

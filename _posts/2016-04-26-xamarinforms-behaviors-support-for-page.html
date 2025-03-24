@@ -1,0 +1,44 @@
+---
+layout: post
+title: 'Xamarin.Forms Behaviors: Support for Page Level Behaviors'
+date: '2016-04-26T13:40:00.001+01:00'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2016-04-26T13:40:42.724+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8836819409628946302
+blogger_orig_url: https://dbritch.blogspot.com/2016/04/xamarinforms-behaviors-support-for-page.html
+---
+
+<p>Previously, I’ve introduced by Behaviors Library for Xamarin.Forms, which can be downloaded from <a href="https://github.com/davidbritch/behaviors">GitHub</a> and <a href="https://www.nuget.org/packages/Behaviors.Forms/">NuGet</a>. The <a href="http://www.davidbritch.com/2016/02/behaviours-library-for-xamarinforms_24.html">Behaviors Library for Xamarin.Forms</a> has the notion of behaviors and actions. A behavior is attached to a control and listens for something to happen, such as an event firing. When the “something” happens, it triggers one or more actions, such as invoking a method or command. Actions are invoked by behaviors and executed on a selected control.</p> <p>A problem with my behaviors library was that it only allowed behaviors to be attached to views (controls), and not to pages. Therefore, I’ve updated the library so that behaviors can be attached to pages.</p> <p>In this blog post, I’ll demonstrate using the <strong>EventHandlerBehavior</strong> and <strong>InvokeCommandAction</strong> classes to invoke a command when a page event fires.</p> <h3>Invoking a Command when a Page Event Fires</h3> <p>The <strong>EventHandlerBehavior</strong> class listens for a specified event to occur, and executes one or more actions in response. It requires you to set an <strong>EventName</strong> property to the event that you want the behavior to listen to, and an <strong>Actions</strong> property to one or more actions that should be executed in response to the event firing.</p> <p>The <strong>InvokeCommandAction</strong> class executes a specified <strong>ICommand</strong> when invoked. It requires you to set a <strong>Command</strong> property to an <strong>ICommand</strong> instance, and <strong>CommandParameter</strong> and <strong>Converter</strong> properties can be optionally set. The <strong>CommandParameter</strong> property should be set to an object instance, with the <strong>Converter</strong> property being set to an instance of a class that implements <strong>IValueConverter</strong>. The <strong>ICommand</strong> specified in the <strong>Command</strong> property will then be executed, with the <strong>CommandParameter</strong> and <strong>Converter</strong> values being used if specified.</p> <p>The following code shows an example of using the <strong>EventHandlerBehavior</strong> to invoke a command:</p>  <div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:a2d30118-4a09-4ce2-94a4-a690a230940c" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 369px; width: 826px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage </span><span style="color: #ff0000">xmlns</span><span style="color: #0000ff">="http://xamarin.com/schemas/2014/forms"</span><span style="color: #ff0000"> 
+             xmlns:x</span><span style="color: #0000ff">="http://schemas.microsoft.com/winfx/2009/xaml"</span><span style="color: #ff0000"> 
+             xmlns:behaviors</span><span style="color: #0000ff">="clr-namespace:Behaviors;assembly=Behaviors"</span><span style="color: #ff0000"> 
+             x:Class</span><span style="color: #0000ff">="Behaviors.Sample.InvokeCommandDemoPage"</span><span style="color: #ff0000"> 
+             Title</span><span style="color: #0000ff">="InvokeCommand Demo"</span><span style="color: #ff0000"> 
+             Icon</span><span style="color: #0000ff">="xaml.png"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">local:InvokeCommandDemoPageViewModel </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    ...
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="Appearing"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeCommandAction </span><span style="color: #ff0000">Command</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding PageAppearingCommand}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="Disappearing"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeCommandAction </span><span style="color: #ff0000">Command</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding PageDisappearingCommand}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    ...
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>When the <strong>Page.Appearing</strong> event fires, the <strong>PageAppearingCommand</strong> is executed. Similarly, when the <strong>Page.Disappearing</strong> event fires, the <strong>PageDisappearingCommand</strong> is executed. The <strong>InvokeCommandAction</strong> class expects to find the <strong>ICommand</strong> instances on the <strong>BindingContext</strong> of the attached object, and in this case the <strong>BindingContext</strong> is set to an instance of the <strong>InvokeCommandDemoPageViewModel</strong> class. Note that the <strong>Actions</strong> property of the <strong>EventHandlerBehavior</strong> instances is set indirectly by creating each <strong>InvokeCommandAction</strong> instance as a child of each <strong>EventHandlerBehavior</strong> instance. When the <strong>ICommand</strong> instances are executed, they display alerts that confirm that the appropriate page event fired.</p>
+<p>The sample application that this code comes from can be downloaded from <a href="https://github.com/davidbritch/behaviors">GitHub</a>.</p>
+<h3>Summary</h3>
+<p>The <a href="http://www.davidbritch.com/2016/02/behaviours-library-for-xamarinforms_24.html">Behaviors Library for Xamarin.Forms</a> now supports attaching behaviors at the page level. This enables actions to be executed in response to a page event firing.</p>

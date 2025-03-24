@@ -1,0 +1,61 @@
+---
+layout: post
+title: Using the Retry Pattern with Azure Storage from Xamarin.Forms
+date: '2019-01-03T12:24:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2019-01-04T08:34:17.624Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4475405985449136371
+blogger_orig_url: https://dbritch.blogspot.com/2019/01/using-retry-pattern-with-azure-storage.html
+---
+
+<p>Back in 2017 I <a href="https://www.davidbritch.com/2017/07/transient-fault-handling-in-xamarinforms.html">wrote</a> about transient fault handling in Xamarin.Forms applications with the retry pattern. Transient faults include the momentary loss of network connectivity to services, the temporary unavailability of a service, or timeouts that arise when a service is busy. These faults can have a huge impact on the perceived quality of an application. Therefore, applications that communicate with remote services should ideally be able to:</p><ol><li>Detect faults when they occur, and determine if the faults are likely to be transient.</li><li>Retry the operation if it’s determined that the fault is likely to be transient, and keep track of the number of times the operation is retried.</li><li>Use an appropriate retry strategy, which specifies the number of retries, the delay between each attempt, and the actions to take after a failed attempt.</li></ol><p>This transient fault handling can be achieved by wrapping all attempts to access a remote service in code that implements the retry pattern.</p><p>Traditionally, the typical approach to using the retry pattern with Azure Storage has been to use a library such as Polly to provide a retry policy. However, this isn’t necessary as the <a href="https://www.nuget.org/packages/WindowsAzure.Storage/">Azure Storage SDK</a> includes the ability to specify a retry policy.The SDK provides different retry strategies, which define the retry interval and other details. There are classes that provide support for linear (constant delay) retry intervals, and exponential with randomization retry intervals. For more information about using Azure Storage from a Xamarin.Forms application, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/data-cloud/storage/azure-storage">Storing and Accessing Data in Azure Storage</a>.</p><p>Retry policies are configured programmatically. When writing to/reading from blob storage, this can be accomplished by creating a <strong>BlobRequestOptions</strong> object and assigning to the <strong>DefaultRequestOptions</strong> property of the <strong>CloudBlobClient</strong> object:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6fc9eaad-854a-40e0-8794-ae41be1d6e5d" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 441px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> AzureStorageService : IAzureStorageService
+{
+    CloudStorageAccount _storageAccount;
+    CloudBlobClient _client;
+
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> AzureStorageService()
+    {
+        _storageAccount </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> CloudStorageAccount.Parse(Constants.StorageConnection);
+        _client </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> CreateBlobClient();
+    }
+
+    CloudBlobClient CreateBlobClient()
+    {
+        CloudBlobClient client </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> _storageAccount.CreateCloudBlobClient();
+        client.DefaultRequestOptions </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> BlobRequestOptions
+        {
+            RetryPolicy </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ExponentialRetry(TimeSpan.FromSeconds(</span><span style="color: rgb(128, 0, 128);">3</span><span style="color: rgb(0, 0, 0);">), </span><span style="color: rgb(128, 0, 128);">4</span><span style="color: rgb(0, 0, 0);">),
+            LocationMode </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> LocationMode.PrimaryThenSecondary,
+            MaximumExecutionTime </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> TimeSpan.FromSeconds(</span><span style="color: rgb(128, 0, 128);">20</span><span style="color: rgb(0, 0, 0);">)
+        };
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> client;
+    }
+    ...
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This code creates a retry policy that uses an exponential retry. The arguments to the <strong>ExponentialRetry</strong> constructor specify the back-off interval between retries, and the maximum number of retry attempts (4). A maximum execution time of 20 seconds is set for all potential retry attempts. The <strong>LocationMode</strong> property is used to indicate which location should receive the request, if the storage account is configured to use geo-redundant storage. Here, <strong>PrimaryThenSecondary</strong> specifies that requests are always sent to the primary location first, and if a request fails, it’s sent to the secondary location. Note that if you use this option you must ensure that your application can work with data that may be stale if the replication from the primary store hasn’t completed.</p><p>All operations with the <strong>CloudBlobClient</strong> object will then use the specified request options. For example, the following code, which uploads a file to blob storage, will use the retry policy defined in the <strong>CloudBlobClient.DefaultRequestOptions</strong> property:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:0b795c38-7c0d-400d-ac02-117df8479f22" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 208px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> UploadFileAsync(ContainerType containerType, Stream stream)
+{
+    var container </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> _client.GetContainerReference(containerType.ToString().ToLower());
+    await container.CreateIfNotExistsAsync();
+
+    var name </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Guid.NewGuid().ToString();
+    var fileBlob </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> container.GetBlockBlobReference(name);
+    await fileBlob.UploadFromStreamAsync(stream);
+
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> name;
+}</span></div></pre><p>Choosing whether to use the linear retry policy or the exponential retry policy depends upon the business needs of your application. However, a general rule of thumb is to use a linear retry policy for interactive applications that are in the foreground, and to use a exponential retry policy when your application is backgrounded, or performing some batch processing.</p><p>The retry policies provided by the Azure Storage SDK will be sufficient for most applications. However, if there’s a need to implement a custom retry approach, the existing policies can be extended through the <strong>IExtendedRetryPolicy</strong> interface.</p><p>For retry guidance with Azure Storage, see <a href="https://docs.microsoft.com/en-us/azure/architecture/best-practices/retry-service-specific#azure-storage">Azure Storage</a>.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/AzureStorage">GitHub</a>.</p></div><p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:07b638ba-7c4c-4d00-8c86-30220b51189f" style="margin: 0px; padding: 0px; float: none; display: inline;"></div>

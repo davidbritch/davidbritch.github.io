@@ -1,0 +1,15 @@
+---
+layout: post
+title: 'Xamarin.Forms Behaviors: New Actions'
+date: '2016-05-26T11:04:00.000+01:00'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2016-05-26T11:05:16.689+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7674895767964581537
+blogger_orig_url: https://dbritch.blogspot.com/2016/05/xamarinforms-behaviors-new-actions.html
+---
+
+<p>My Behaviors Library for Xamarin.Forms is a PCL I’ve created that can be consumed by Xamarin.Forms applications, and can be downloaded from <a href="https://github.com/davidbritch/behaviors">GitHub</a> and <a href="https://www.nuget.org/packages/Behaviors.Forms/1.1.0">NuGet</a>. The library has the notion of behaviors and actions. A behavior is attached to a control and listens for something to happen, such as an event firing. When the “something” happens, it triggers one or more actions, such as invoking a method or command. Actions are invoked by behaviors and executed on a selected control.</p> <p>I’ve recently added a number of new actions to the library, to support animations. The actions are:</p> <ul> <li>FadeAction</li> <li>RotateAction</li> <li>ScaleAction</li> <li>TranslateAction</li></ul> <p>The advantage of using these actions is that it’s possible to invoke animation through XAML, rather than having to use C#. In addition, when combined with behaviors, compound animations can easily be invoked through XAML when a behavior occurs, such as an event firing, or a piece of data changing.</p> <p>Stay tuned over the next few weeks for details of how to consume these actions.</p>

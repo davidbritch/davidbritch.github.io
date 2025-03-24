@@ -1,0 +1,78 @@
+---
+layout: post
+title: Creating a Hyperlink in Xamarin.Forms II
+date: '2018-10-30T09:27:00.001Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-10-30T09:27:53.607Z'
+thumbnail: https://lh3.googleusercontent.com/-X-bDHRQUh-M/W9gkEx1FC9I/AAAAAAAAC8c/bnbaAEz3YOYwrEpdSo_eD9mEFKDF2t6UgCHMYCw/s72-c/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5568167286762379073
+blogger_orig_url: https://dbritch.blogspot.com/2018/10/creating-hyperlink-in-xamarinforms-ii.html
+---
+
+<p><a href="https://www.davidbritch.com/2018/10/creating-hyperlink-in-xamarinforms.html">Previously</a>, I wrote about creating a hyperlink in a Xamarin.Forms app by adding a <strong>TapGestureRecognizer</strong> to the <strong>GestureRecognizers</strong> collection of a <strong>Span</strong>, and setting its <strong>TextDecorations</strong> property to <strong>Underline</strong>. This can be achieved in XAML as follows:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ef2281d9-a30b-4aaf-bdc4-c28486e9a4a0" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 154px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Xamarin documentation"</span><span style="color: rgb(255, 0, 0);">
+      TextColor</span><span style="color: rgb(0, 0, 255);">="Blue"</span><span style="color: rgb(255, 0, 0);">
+      TextDecorations</span><span style="color: rgb(0, 0, 255);">="Underline"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span.GestureRecognizers</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">TapGestureRecognizer </span><span style="color: rgb(255, 0, 0);">Command</span><span style="color: rgb(0, 0, 255);">="{Binding TapCommand}"</span><span style="color: rgb(255, 0, 0);">
+                              CommandParameter</span><span style="color: rgb(0, 0, 255);">="https://docs.microsoft.com/xamarin/"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Span.GestureRecognizers</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Span</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The problem with this approach is that it requires repetitive code every time you need a hyperlink in your app. A better approach would be to sub-class the <strong>Span</strong> class into a <strong>HyperlinkSpan</strong> class, with the gesture recognizer and text decoration added there. Unfortunately, the <strong>Span</strong> class is <strong>sealed</strong> and so can’t be inherited from. However, there’s an enhancement proposal to unseal the class, so that it can be inherited from. Go and up vote it <a href="https://github.com/xamarin/Xamarin.Forms/issues/4083">here</a>!</p>
+<p>Therefore, for the purposes of this blog post I’ll demonstrate sub-classing the <strong>Label</strong> class to create a <strong>HyperlinkLabel</strong> class. Once the <strong>Span</strong> class is unsealed, the same approach can be followed.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/HyperlinkLabel">GitHub</a>.</p>
+<h3>Creating a HyperlinkLabel Class</h3>
+<p>The following code shows the <strong>HyperlinkLabel</strong> class:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e96a567f-d464-469e-815a-4cbb114ca581" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 386px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">public class HyperlinkLabel : </span><span style="color: rgb(0, 0, 255);">Label</span><span style="color: rgb(0, 0, 0);">
+{
+    public static readonly BindableProperty UrlProperty </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> 
+        BindableProperty</span><span style="color: rgb(0, 0, 0);">.</span><span style="color: rgb(0, 0, 0);">Create</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">nameof</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">Url</span><span style="color: rgb(0, 0, 0);">),</span><span style="color: rgb(0, 0, 0);"> typeof</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">string</span><span style="color: rgb(0, 0, 0);">),</span><span style="color: rgb(0, 0, 0);"> typeof</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">HyperlinkLabel</span><span style="color: rgb(0, 0, 0);">),</span><span style="color: rgb(0, 0, 0);"> null</span><span style="color: rgb(0, 0, 0);">);</span><span style="color: rgb(0, 0, 0);">
+
+    public string Url
+    {
+        get { </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">string</span><span style="color: rgb(0, 0, 0);">)</span><span style="color: rgb(0, 0, 0);">GetValue</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">UrlProperty</span><span style="color: rgb(0, 0, 0);">);</span><span style="color: rgb(0, 0, 0);"> }
+        </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);"> { SetValue</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">UrlProperty</span><span style="color: rgb(0, 0, 0);">,</span><span style="color: rgb(0, 0, 0);"> value</span><span style="color: rgb(0, 0, 0);">);</span><span style="color: rgb(0, 0, 0);"> }
+    }
+
+    public HyperlinkLabel</span><span style="color: rgb(0, 0, 0);">()</span><span style="color: rgb(0, 0, 0);">
+    {
+        TextDecorations </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> TextDecorations</span><span style="color: rgb(0, 0, 0);">.</span><span style="color: rgb(0, 0, 0);">Underline</span><span style="color: rgb(0, 0, 0);">;</span><span style="color: rgb(0, 0, 0);">
+        TextColor </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Color</span><span style="color: rgb(0, 0, 0);">.</span><span style="color: rgb(0, 0, 0);">Blue</span><span style="color: rgb(0, 0, 0);">;</span><span style="color: rgb(0, 0, 0);">
+        GestureRecognizers</span><span style="color: rgb(0, 0, 0);">.</span><span style="color: rgb(0, 0, 0);">Add</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">new TapGestureRecognizer
+        {
+            </span><span style="color: rgb(0, 0, 255);">Command</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> new </span><span style="color: rgb(0, 0, 255);">Command</span><span style="color: rgb(0, 0, 0);">(()</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">Device</span><span style="color: rgb(0, 0, 0);">.</span><span style="color: rgb(0, 0, 0);">OpenUri</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">new Uri</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 0);">Url</span><span style="color: rgb(0, 0, 0);">)))</span><span style="color: rgb(0, 0, 0);">
+        }</span><span style="color: rgb(0, 0, 0);">);</span><span style="color: rgb(0, 0, 0);">
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The class defines a <strong>Url</strong> property (and <strong>BindableProperty</strong>), and the class constructor sets the hyperlink look and the <strong>TapGestureRecognizer</strong> that will respond when the hyperlink is tapped. When a <strong>HyperlinkLabel</strong> is tapped, the <strong>TapGestureRecognizer</strong> will respond by executing the <strong>Device.OpenUri</strong> method to open the URL, specified by the <strong>Url</strong> property, in a web browser.</p><p>The <strong>HyperlinkLabel</strong> class can be consumed simply by adding an XML namespace declaration to your XAML, and then an instance of the class:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ef076003-0b6c-49fb-9044-133a1891b797" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 265px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ContentPage </span><span style="color: rgb(255, 0, 0);">xmlns</span><span style="color: rgb(0, 0, 255);">="http://xamarin.com/schemas/2014/forms"</span><span style="color: rgb(255, 0, 0);"> 
+             xmlns:x</span><span style="color: rgb(0, 0, 255);">="http://schemas.microsoft.com/winfx/2009/xaml"</span><span style="color: rgb(255, 0, 0);"> 
+             xmlns:local</span><span style="color: rgb(0, 0, 255);">="clr-namespace:HyperlinkLabel"</span><span style="color: rgb(255, 0, 0);"> 
+             x:Class</span><span style="color: rgb(0, 0, 255);">="HyperlinkLabel.MainPage"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">StackLayout </span><span style="color: rgb(255, 0, 0);">Margin</span><span style="color: rgb(0, 0, 255);">="20"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Hyperlink Demo"</span><span style="color: rgb(255, 0, 0);"> 
+               HorizontalOptions</span><span style="color: rgb(0, 0, 255);">="Center"</span><span style="color: rgb(255, 0, 0);"> 
+               FontAttributes</span><span style="color: rgb(0, 0, 255);">="Bold"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Click the text below to view Xamarin documentation."</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:HyperlinkLabel </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Xamarin Documentation"</span><span style="color: rgb(255, 0, 0);">
+                              Url</span><span style="color: rgb(0, 0, 255);">="https://docs.microsoft.com/xamarin/"</span><span style="color: rgb(255, 0, 0);">
+                              HorizontalOptions</span><span style="color: rgb(0, 0, 255);">="Center"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">StackLayout</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">ContentPage</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>HyperlinkLabel</strong> instance is rendered as follows:</p><p><img width="640" height="216" title="Simulator Screen Shot - iPhone 8 - 2018-10-29 at 11.37.55" style="border: 0px currentcolor; border-image: none; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-10-29 at 11.37.55" src="https://lh3.googleusercontent.com/-X-bDHRQUh-M/W9gkEx1FC9I/AAAAAAAAC8c/bnbaAEz3YOYwrEpdSo_eD9mEFKDF2t6UgCHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800" border="0"></p><p>It’s <strong>Url</strong> property is set to the URL to be opened when the hyperlink is tapped. When this occurs, a web browser appears and the URL is navigated to:</p><p><img width="270" height="480" title="Simulator Screen Shot - iPhone 8 - 2018-10-29 at 11.38.04" style="border: 0px currentcolor; border-image: none; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-10-29 at 11.38.04" src="https://lh3.googleusercontent.com/-2kxhdwxGnhA/W9gkF9ixuOI/AAAAAAAAC8g/1sCCmBSRr80r546d_nOcpwdkYuw1zwGSgCHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B2%255D?imgmax=800" border="0"></p><p><br></p><h3>Summary</h3><p>The repetitive code for creating a hyperlink on a <strong>Span</strong> or <strong>Label</strong> should be sub-classed into a <strong>HyperlinkSpan</strong> or <strong>HyperlinkLabel</strong> class, with the gesture recognizer and text decoration added there. Unfortunately, the <strong>Span</strong> class is <strong>sealed</strong> and currently can’t be inherited from. However, there’s an <a href="https://github.com/xamarin/Xamarin.Forms/issues/4083">enhancement proposal</a> to unseal the <strong>Span</strong> class. Once this is achieved, the approach taken in this blog post for the <strong>HyperlinkLabel</strong> class can be applied to the <strong>Span</strong> class.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/HyperlinkLabel">GitHub</a>.</p>

@@ -1,0 +1,86 @@
+---
+layout: post
+title: Cross-platform imaging with Xamarin.Forms and SkiaSharp II
+date: '2019-07-16T11:29:00.001+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2019-07-16T11:29:01.612+01:00'
+thumbnail: https://3.bp.blogspot.com/-FNfD94KSaGo/XS2mg0ta7wI/AAAAAAAADBA/GBke43tM2AcNQZscPMz-KAO713X5_xKbwCLcBGAs/s72-c/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.52.40.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-1658368642786995309
+blogger_orig_url: https://dbritch.blogspot.com/2019/07/cross-platform-imaging-with_16.html
+---
+
+<p><a href="https://www.davidbritch.com/2019/07/cross-platform-imaging-with.html">Previously</a>, I wrote about combining Xamarin.Forms and SkiaSharp to create a cross-platform imaging app. SkiaSharp offers a number of different approaches for accessing pixel data. I went with the most performant approach for doing this, which is to use the <strong>GetPixels</strong> method to return a pointer to the pixel data, dereference the pointer whenever you want to read/write a pixel value, and use pointer arithmetic to move the pointer to other pixels.</p><p>I created a basic app that loads/displays/saves images, and performs basic imaging algorithms. Surprisingly, the execution speed of the algorithms was excellent on both iOS and Android, despite the source image size (4032x3024). However, the imaging algorithms (greyscale, threshold, sepia) were pretty basic and so I decided to move things up a gear and see what the execution speed would be like when performing convolution, which increases the amount of processing performed on an image.</p><p>In this blog post I’ll discuss implementing convolution in SkiaSharp. The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Imaging">GitHub</a>.</p><h3>Implementing convolution</h3><p>In image processing, convolution is the process of adding each element of the image to its local neighbours, weighted by a convolution kernel. The kernel is a small matrix that defines the imaging operation, such as blurring, sharpening, embossing, edge detection, and more. For more information about convolution, see <a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)">Kernel image processing</a>.</p><p>The <strong>ConvolutionKernels</strong> class in the app defines a number of kernels that implement a different imaging algorithm, when convolved with an image. The following code shows three kernels from this class:</p><pre><code class="cs">namespace Imaging
+{
+    public class ConvolutionKernels
+    {
+        public static float[] EdgeDetection =&gt; new float[9]
+        {
+            -1, -1, -1,
+            -1,  8, -1,
+            -1, -1, -1
+        };
+
+        public static float[] LaplacianOfGaussian =&gt; new float[25]
+        {
+             0,  0, -1,  0,  0,
+             0, -1, -2, -1,  0,
+            -1, -2, 16, -2, -1,
+             0, -1, -2, -1,  0,
+             0,  0, -1,  0,  0
+        };
+
+        public static float[] Emboss =&gt; new float[9]
+        {
+            -2, -1, 0,
+            -1,  1, 1,
+             0,  1, 2
+        };
+    }
+}<code class="cs">
+</code></code></pre><p>I implemented my own convolution algorithm for performing convolution with 3x3 kernels and was reasonably happy with its execution speed. However, as my <strong>ConvolutionKernels</strong> class included kernels of different sizes, I had to extend the algorithm to handle NxN sized kernels. Unfortunately, for larger kernel sizes the execution speed slowed quite drammatically. This is because convolution has a complexity of O(N<sup>2</sup>). However, there are fast convolution algorithms that reduce the complexity to O(N log N). For more information, see <a href="https://en.wikipedia.org/wiki/Convolution_theorem">Convolution theorem</a>.</p><p>I was about to implement a fast convolution algorithm when I discovered the <a href="https://docs.microsoft.com/en-us/dotnet/api/skiasharp.skimagefilter.creatematrixconvolution?view=skiasharp-1.68.0">CreateMatrixConvolution</a> method in the <strong>SKImageFilter</strong> class. While I set out to avoid using any filters baked into SkiaSharp, I was happy to use this method because (1) it allows you to specify kernels of arbitrary size, (2) it allows you to specify how edge pixels in the image are handled, and (3) it turned out it was lightning fast (I’m assuming it uses fast convolution under the hood, amongst other optimisation techniques).</p><p>After investigating this method, it seemed there&nbsp; were a number of obvious approaches to using it:</p><ol><li>Load the image, select a kernel, apply an SKImageFilter, then draw the resulting image.</li>
+<li>Load the image, select a kernel, and apply an SKImageFilter while redrawing the image.</li>
+<li>Select a kernel, load the image and apply an SKImageFilter while drawing it.</li>
+</ol><p>I implemented both (1) and (2) and settled on (2) as my final implementation as it was less code and offered slightly better performance (presumably due to SkiaSharp being optimised for drawing). In addition, I discounted (3), purely because I like to see the source image before I process it.</p><p>The following code example shows how a selected kernel is applied to an image, when drawing it:</p><pre><code class="cs">        void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
+        {
+            SKImageInfo info = e.Info;
+            SKCanvas canvas = e.Surface.Canvas;
+
+            canvas.Clear();
+            if (image != null)
+            {
+                if (kernelSelected)
+                {
+                    using (SKPaint paint = new SKPaint())
+                    {
+                        paint.FilterQuality = SKFilterQuality.High;
+                        paint.IsAntialias = false;
+                        paint.IsDither = false;
+                        paint.ImageFilter = SKImageFilter.CreateMatrixConvolution(
+                            sizeI, kernel, 1f, 0f, new SKPointI(1, 1),
+                            SKMatrixConvolutionTileMode.Clamp, false);
+
+                        canvas.DrawImage(image, info.Rect, ImageStretch.Uniform, paint: paint);
+                        image = e.Surface.Snapshot();
+                        kernel = null;
+                        kernelSelected = false;
+                    }
+                }
+                else
+                {
+                    canvas.DrawImage(image, info.Rect, ImageStretch.Uniform);
+                }
+            }
+        }
+</code></pre><p>The <strong>OnCanvasViewPaintSurface</strong> handler is invoked to draw an image on the UI, when the image is loaded and whenever processing is performed on it. This method will be invoked whenevermthe <strong>InvalidateSurface</strong> method is called on the <strong>SKCanvasView</strong> object. The code in the <strong>else</strong> clause executes when an image is loaded, and draws the image on the UI. The code in the <strong>if</strong> clause executes when the user has selected a kernel, and taps a <strong>Button</strong> to perform convolution. Convolution is performed by creating an <strong>SKPaint</strong> object, and setting various properties on the object. Importantly, this includes setting the <strong>ImageFilter</strong> property to the <strong>SKImageFilter</strong> object returned by the <strong>CreateMatrixConvolution</strong> method. The arguments to the <strong>CreateMatrixConvolution</strong> method are:</p><ul><li>The kernel size in pixels, as a <strong>SKSizeI</strong> struct.</li>
+<li>The image processing kernel, as a <strong>float[]</strong> .</li>
+<li>A scale factor applied to each pixel after convolution, as a <strong>float</strong>. I use a value of 1, so no scaling is applied.</li>
+<li>A bias factor added to each pixel after convolution, as a <strong>float</strong>. I use a value of 0, representing no bias factor.</li>
+<li>A kernel offset, which is applied to each pixel before convolution, as a <strong>SKPointI</strong> struct. I use values of 1,1 to ensure that no offset values are applied.</li>
+<li>A tile mode that represents how pixel accesses outside the image are treated, as a <strong>SKMatrixConvolutionTileMode</strong> enumeration value. I used the <strong>Clamp</strong> enumeration member to specify that the convolution should be clamped to the image’s edge pixels.</li>
+<li>A <strong>boolean</strong> value that indicates whether the alpha channel should be included in the convolution. I specified <strong>false</strong> to ensure that only the RGB channels are processed.</li>
+</ul><p>In addition, further arguments for the <strong>CreateMatrixConvolution</strong> method can be specified, but weren’t required here. For example, you could choose to perform convolution only on a specified region in the image.</p><p>After defining the <strong>SKImageFilter</strong>, the image is re-drawn, using the <strong>SKPaint</strong> object that includes the <strong>SKImageFilter</strong> object. The result is an image that has been convolved with the kernel selected by the user. Then, the <strong>SKSurface.Snapshot</strong> method is called, so that the re-drawn image is returned as an <strong>SKImage</strong>. This ensures that if the user selects an another kernel, convolution occurs against the new image, rather than the originally loaded image.</p><p>The following iOS screenshot shows the source image convolved with a simple edge detection kernel:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://3.bp.blogspot.com/-FNfD94KSaGo/XS2mg0ta7wI/AAAAAAAADBA/GBke43tM2AcNQZscPMz-KAO713X5_xKbwCLcBGAs/s1600/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.52.40.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://3.bp.blogspot.com/-FNfD94KSaGo/XS2mg0ta7wI/AAAAAAAADBA/GBke43tM2AcNQZscPMz-KAO713X5_xKbwCLcBGAs/s400/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.52.40.png" width="185" height="400" data-original-width="739" data-original-height="1600" /></a></div><p>The following iOS screenshot shows the source image convolved with a kernel designed to create an emboss effect:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://1.bp.blogspot.com/-ghU6pVPP_Mg/XS2mntbLoDI/AAAAAAAADBE/q83Zsm3IXpogOLLAFfTFCp2-OQqKUywKQCLcBGAs/s1600/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.52.49.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://1.bp.blogspot.com/-ghU6pVPP_Mg/XS2mntbLoDI/AAAAAAAADBE/q83Zsm3IXpogOLLAFfTFCp2-OQqKUywKQCLcBGAs/s400/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.52.49.png" width="185" height="400" data-original-width="739" data-original-height="1600" /></a></div><p>The following iOS screenshot shows the source image convolved with a kernel that implements the Laplacian of a Gaussian:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://3.bp.blogspot.com/-061wXlygDgE/XS2mtVtPZeI/AAAAAAAADBI/E7pSuSsoltofR3AXi0GuyS-q20jEAQXSQCLcBGAs/s1600/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.53.08.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://3.bp.blogspot.com/-061wXlygDgE/XS2mtVtPZeI/AAAAAAAADBI/E7pSuSsoltofR3AXi0GuyS-q20jEAQXSQCLcBGAs/s400/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-07-15%2Bat%2B15.53.08.png" width="185" height="400" data-original-width="739" data-original-height="1600" /></a></div><p>The Laplacian of a Gaussian is an interesting kernel that performs edge detection on smoothed image data. The Laplacian operator highlights regions of rapid intensity change, and is applied to an image that has first been smoothed with a Gaussian smoothing filter in order to reduce its sensitivity to noise.</p><h3>Wrapping up</h3><p>In undertaking this work, the question I set out to answer is as follows: is the combination of Xamarin.Forms and SkiaShap a viable platform for writing cross-platform imaging apps, when performing more substantial image processing? My main criteria for answering this question are:</p><ol><li>Can most of the app be written in shared code?</li>
+<li>Can imaging algorithms be implemented so that they have a fast execution speed, particularly on Android?</li>
+</ol><p>The answer to both questions, at this stage, is yes. I was impressed with the execution speed of SkiaSharp’s convolution algorithm on both platforms. I was particularly impressed when considering the size of the source image (4032x3024), and the amount of processing that’s performed when convolving an image with a kernel, particularly for larger kernels (the largest one in the app is 7x7). </p><p>The reason I say at this stage is that while performing convolution is a step up from basic imaging algorithms (greyscale, thresholding, sepia), it’s still considered relatively basic in image processing terms, despite the processing performed during convolution. Therefore, in my next blog post I’ll look at performing frequency filtering, which significantly increases the amount of processing performed on an image.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Imaging">GitHub</a>.</p>

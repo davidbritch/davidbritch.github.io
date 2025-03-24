@@ -1,0 +1,66 @@
+---
+layout: post
+title: Creating a Hyperlink in Xamarin.Forms
+date: '2018-10-22T13:37:00.001+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-10-22T13:41:00.715+01:00'
+thumbnail: https://lh3.googleusercontent.com/-HdpiWa886Kk/W83E1sAbYrI/AAAAAAAAC7g/rQjYftHXnQAl8kJj9lgkJKVxawc7BqybwCHMYCw/s72-c/Simulator-Screen-Shot---iPhone-8---2%255B3%255D?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-2705121877920004542
+blogger_orig_url: https://dbritch.blogspot.com/2018/10/creating-hyperlink-in-xamarinforms.html
+---
+
+<p>Creating a hyperlink in a Xamarin.Forms app has traditionally involved writing an effect or custom renderer, and having to provide platforms implementations as required.</p> <p>Xamarin.Forms 3.2 introduced the ability to add a gesture recognizer to a <strong>Span</strong>, and Xamarin.Forms 3.3 introduced the ability to add a text decoration (such as underline) to a <strong>Span</strong>. Therefore, it’s now possible to easily add a tappable hyperlink to a Xamarin.Forms page. While this blog post focuses on achieving this with a <strong>Span</strong>, it’s equally directly applicable to a <strong>Label</strong>.</p> <p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/HyperlinkText" target="_blank">GitHub</a>.</p> <h3>Creating a Hyperlink</h3> <p>The following XAML shows a <strong>Label </strong>that comprises three <strong>Span</strong> objects:</p> <p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:5ea689f7-594e-420b-ba14-6d16ba7b0306" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 315px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label.FormattedText</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">FormattedString</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Deliver native Android, iOS, and Windows apps with a single shared .NET code
+                        base. For more information, see "</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="Xamarin documentation"</span><span style="color: rgb(255, 0, 0);">
+                  TextColor</span><span style="color: rgb(0, 0, 255);">="Blue"</span><span style="color: rgb(255, 0, 0);">
+                  TextDecorations</span><span style="color: rgb(0, 0, 255);">="Underline"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+                </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span.GestureRecognizers</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+                    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">TapGestureRecognizer </span><span style="color: rgb(255, 0, 0);">Command</span><span style="color: rgb(0, 0, 255);">="{Binding TapCommand}"</span><span style="color: rgb(255, 0, 0);">
+                                          CommandParameter</span><span style="color: rgb(0, 0, 255);">="https://docs.microsoft.com/xamarin/"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Span.GestureRecognizers</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Span</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Span </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="."</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">FormattedString</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Label.FormattedText</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Label</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The first and last <strong>Span</strong> objects simply comprise text, with the second <strong>Span</strong> object representing a tappable hyperlink. It has its colour set to blue, and has an underline text decoration. This creates the appearance of a hyperlink, as shown in the following screenshot:</p>
+<p><img width="640" height="229" title="Simulator Screen Shot - iPhone 8 - 2018-10-22 at 12.25.51" style="border: 0px currentcolor; padding-top: 0px; padding-right: 0px; padding-left: 0px; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-10-22 at 12.25.51" src="https://lh3.googleusercontent.com/-HdpiWa886Kk/W83E1sAbYrI/AAAAAAAAC7g/rQjYftHXnQAl8kJj9lgkJKVxawc7BqybwCHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B3%255D?imgmax=800" border="0"></p>
+<p>More importantly, the second <strong>Span</strong> has a <strong>TapGestureRecognizer</strong> in its <strong>GestureRecognizer</strong> collection. Therefore, when this <strong>Span</strong> is tapped the <strong>TapGestureRecognizer</strong> will respond by executing the <strong>ICommand</strong> defined by the <strong>Command</strong> property. In addition, the URI specified by the <strong>CommandParameter</strong> property will be passed to the <strong>ICommand</strong> as a parameter.</p>
+<p>The code-behind for the page contains the <strong>TapCommand</strong> implementation:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6bd465f3-54e6-4604-9cb2-060d961bc02a" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 273px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">partial</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> MainPage : ContentPage
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> ICommand TapCommand </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Command</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(OpenBrowser);
+
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> MainPage()
+    {
+        InitializeComponent();
+        BindingContext </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">;
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OpenBrowser(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> url)
+    {
+        Device.OpenUri(</span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Uri(url));
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>TapCommand</strong> simply executes the <strong>OpenBrowser</strong> method, passing the <strong>CommandParameter</strong> property value as a parameter. In turn, this method calls the <strong>Device.OpenUri</strong> method, that’s included in Xamarin.Forms, to open the URI in a web browser. Therefore, the overall effect is that when the hyperlink is tapped on the page, a web browser appears and the URI associated with the hyperlink is navigated to:</p>
+<p><img width="270" height="480" title="Simulator Screen Shot - iPhone 8 - 2018-10-22 at 12.27.34" style="border: 0px currentcolor; padding-top: 0px; padding-right: 0px; padding-left: 0px; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-10-22 at 12.27.34" src="https://lh3.googleusercontent.com/-4S700VooPp8/W83E2rY23EI/AAAAAAAAC7k/HU4bhX5OOUAMTtLkwQdX-nef6ZklcD9mQCHMYCw/Simulator-Screen-Shot---iPhone-8---2?imgmax=800" border="0"></p>
+<h3>Summary</h3>
+
+<p>Xamarin.Forms 3.2 introduced the ability to add a gesture recognizer to a <strong>Span</strong>, and Xamarin.Forms 3.3 introduced the ability to add a text decoration (such as underline) to a <strong>Span</strong>. Therefore, it’s now possible to easily add a tappable hyperlink to a Xamarin.Forms page.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/HyperlinkText" target="_blank">GitHub</a>.</p>

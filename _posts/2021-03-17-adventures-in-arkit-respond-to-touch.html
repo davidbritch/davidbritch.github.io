@@ -1,0 +1,87 @@
+---
+layout: post
+title: Adventures in ARKit - respond to touch
+date: '2021-03-17T10:04:00.007Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-17T10:07:09.288Z'
+thumbnail: https://1.bp.blogspot.com/-r84snOyirro/YEuVo_feG4I/AAAAAAAADTg/_ndzV473o4AWBn9yaQK040vWtCkFZlSAwCNcBGAsYHQ/s72-c/IMG_0984.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-360786638515556842
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-respond-to-touch.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-overlay-image.html">previous blog post</a> I discussed how to overlay an image on the camera output in an ARKit app.</p>
+<p>Objects that you overlay on the camera output are called <em>nodes</em>. By default, nodes don’t have a shape. Instead, you give them a geometry (shape) and apply materials to the geometry to provide a visual appearance.</p>
+<p>Overlaying a node, or multiple nodes, on a scene is typically the first step in creating an augmented reality app. However, such apps typically require interaction with the nodes. In this blog post I’ll examine touch interaction with the <code>ImageNode</code> from the previous blog post.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/04%20-%20ARKitFun%20-%20Touch">GitHub</a>.</p>
+<h2 id="respond-to-touch">Respond to touch</h2>
+<p>Augmented reality apps usually allow interaction with the nodes that are overlayed on a scene. This interaction is typically touch-based. The <code>UIGestureRecognizer</code> types can be used to detect gestures on nodes, that can then be manipulated as required.</p>
+<p>The <code>ARSCNView</code> instance must be told to listen for gestures, in order for an ARKit app to respond to different touch interactions. This can be accomplished by creating the required gesture recognisers and adding them to the <code>ARSCNView</code> instance with the <code>AddGestureRecognizer</code> method:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> System<span class="token punctuation">.</span>Linq<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Nodes<span class="token punctuation">;</span>
+<span class="token keyword">using</span> CoreGraphics<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+	<span class="token keyword">readonly</span> ARSCNView sceneView<span class="token punctuation">;</span>
+	<span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span></code></pre><pre class="language-csharp"><code class="prism language-csharp">        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+            UITapGestureRecognizer tapGestureRecognizer <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">UITapGestureRecognizer</span><span class="token punctuation">(</span>HandleTapGesture<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span><span class="token function">AddGestureRecognizer</span><span class="token punctuation">(</span>tapGestureRecognizer<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            UIPinchGestureRecognizer pinchGestureRecognizer <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">UIPinchGestureRecognizer</span><span class="token punctuation">(</span>HandlePinchGesture<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span><span class="token function">AddGestureRecognizer</span><span class="token punctuation">(</span>pinchGestureRecognizer<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>In this example, gesture recognisers are added for the tap gesture and the pinch gesture. The following code example shows the <code>HandleTapGesture</code> and <code>HandlePinchGesture</code> methods that are used to process these gestures:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">void</span> <span class="token function">HandleTapGesture</span><span class="token punctuation">(</span>UITapGestureRecognizer sender<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    SCNView areaPanned <span class="token operator">=</span> sender<span class="token punctuation">.</span>View <span class="token keyword">as</span> SCNView<span class="token punctuation">;</span>
+    CGPoint point <span class="token operator">=</span> sender<span class="token punctuation">.</span><span class="token function">LocationInView</span><span class="token punctuation">(</span>areaPanned<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult<span class="token punctuation">[</span><span class="token punctuation">]</span> hits <span class="token operator">=</span> areaPanned<span class="token punctuation">.</span><span class="token function">HitTest</span><span class="token punctuation">(</span>point<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">SCNHitTestOptions</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult hit <span class="token operator">=</span> hits<span class="token punctuation">.</span><span class="token function">FirstOrDefault</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>hit <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        SCNNode node <span class="token operator">=</span> hit<span class="token punctuation">.</span>Node<span class="token punctuation">;</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>node <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+            node<span class="token punctuation">.</span><span class="token function">RemoveFromParentNode</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword">void</span> <span class="token function">HandlePinchGesture</span><span class="token punctuation">(</span>UIPinchGestureRecognizer sender<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    SCNView areaPanned <span class="token operator">=</span> sender<span class="token punctuation">.</span>View <span class="token keyword">as</span> SCNView<span class="token punctuation">;</span>
+    CGPoint point <span class="token operator">=</span> sender<span class="token punctuation">.</span><span class="token function">LocationInView</span><span class="token punctuation">(</span>areaPanned<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult<span class="token punctuation">[</span><span class="token punctuation">]</span> hits <span class="token operator">=</span> areaPanned<span class="token punctuation">.</span><span class="token function">HitTest</span><span class="token punctuation">(</span>point<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">SCNHitTestOptions</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNHitTestResult hit <span class="token operator">=</span> hits<span class="token punctuation">.</span><span class="token function">FirstOrDefault</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>hit <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        SCNNode node <span class="token operator">=</span> hit<span class="token punctuation">.</span>Node<span class="token punctuation">;</span>
+
+        <span class="token keyword">float</span> scaleX <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span>sender<span class="token punctuation">.</span>Scale <span class="token operator">*</span> node<span class="token punctuation">.</span>Scale<span class="token punctuation">.</span>X<span class="token punctuation">;</span>
+        <span class="token keyword">float</span> scaleY <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span>sender<span class="token punctuation">.</span>Scale <span class="token operator">*</span> node<span class="token punctuation">.</span>Scale<span class="token punctuation">.</span>Y<span class="token punctuation">;</span>
+
+        node<span class="token punctuation">.</span>Scale <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span>scaleX<span class="token punctuation">,</span> scaleY<span class="token punctuation">,</span> zPosition <span class="token operator">/</span> <span class="token number">2</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        sender<span class="token punctuation">.</span>Scale <span class="token operator">=</span> <span class="token number">1</span><span class="token punctuation">;</span> <span class="token comment">// Reset the node scale value</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>Both methods share common code that determines the node on which a gesture was detected. Code that interacts with the node is then performed. For example, the <code>HandleTapGesture</code> removes the node from the scene, when it’s tapped.  The <code>HandlePinchGesture</code> scales the width and height of the node using the pinch gesture. Similarly, it’s possible to add other gesture recognisers to move nodes, rotate them etc.</p>
+<p>The overall effect is that the node can be removed from the scene with a tap, or scaled with a pinch:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-r84snOyirro/YEuVo_feG4I/AAAAAAAADTg/_ndzV473o4AWBn9yaQK040vWtCkFZlSAwCNcBGAsYHQ/s1136/IMG_0984.PNG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="1136" data-original-width="640" height="320" src="https://1.bp.blogspot.com/-r84snOyirro/YEuVo_feG4I/AAAAAAAADTg/_ndzV473o4AWBn9yaQK040vWtCkFZlSAwCNcBGAsYHQ/s320/IMG_0984.PNG" /></a></div>
+<p>In my next blog post I’ll discuss animating a node in a scene.</p>
+

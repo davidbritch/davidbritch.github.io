@@ -1,0 +1,15 @@
+---
+layout: post
+title: Behaviours Library 1.4
+date: '2018-05-22T09:24:00.000+01:00'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2018-05-22T09:25:57.527+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5052151761248604973
+blogger_orig_url: https://dbritch.blogspot.com/2018/05/behaviours-library-14.html
+---
+
+<p>It was recently brought to my attention that my Behaviours library didn’t work with Xamarin.Forms 3.0. After some investigation and a small code change I brought it back to life. </p><p>Rather than re-publish it with Xamarin.Forms 3.0 compatibility, I decided to spend some time adding new functionality. Therefore, in addition to the existing functionality, v1.4 of the library adds:</p><ul><li>A <strong>ConverterParameter</strong> property to <strong>InvokeCommandAction</strong>, for passing parameters to converters.</li><li>A <strong>SourceObject</strong> property to <strong>EventHandlerBehavior</strong>, for specifying the object on which the event can be found (the event no longer has to be on the parent in the visual tree).</li><li>A <strong>GoToStateAction</strong> class, for invoking visual state changes in XAML. Adding this class makes the library dependent upon Xamarin.Forms 3.0.</li></ul><p>I’ll explore this functionality over a series of blog posts. In the meantime, the updated library can be found on <a href="https://www.nuget.org/packages/Behaviors.Forms/1.3.0">NuGet</a>, with the source on <a href="https://github.com/davidbritch/behaviors">GitHub</a>.</p>

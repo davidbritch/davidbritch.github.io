@@ -1,0 +1,28 @@
+---
+layout: post
+title: What’s new in CollectionView in Xamarin.Forms 4.1
+date: '2019-07-03T12:02:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2019-07-03T12:04:12.049+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3353028220519316927
+blogger_orig_url: https://dbritch.blogspot.com/2019/07/whats-new-in-collectionview-in.html
+---
+
+<p>Xamarin.Forms 4.1 was released on Monday, and as well as new functionality such as <strong>CheckBox</strong>, it includes a number of updates to <strong>CollectionView</strong>. The main <strong>CollectionView</strong> updates are outlined below.</p> <h3>Item Spacing</h3> <p>By default, each item in a <strong>CollectionView</strong> lacks empty space around it. This can now be changed by setting properties on the items layout used by the <strong>CollectionView</strong>.</p> <p>For a <strong>ListItemsLayout</strong>, set the<strong> ItemSpacing</strong> property to a <strong>double</strong> that represents the empty space around each item. For a <strong>GridItemsLayout</strong>, set the<strong> VerticalItemSpacing</strong> and <strong>HorizontalItemSpacing</strong> properties to <strong>double</strong> values that represent the empty space vertically and horizontally around each item.</p> <p>For more info, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/user-interface/collectionview/layout#item-spacing" target="_blank">Item spacing</a>.</p> <h3>Specifying Layout</h3> <p>The static <strong>VerticalList</strong> and <strong>HorizontalList</strong> members in the <strong>ListItemsLayout</strong> class have been renamed to <strong>Vertical</strong> and <strong>Horizontal</strong>.</p> <p>In addition, <strong>CollectionView</strong> has gained some converters so that vertical and horizontal lists can be specified in XAML using strings, rather than static members:</p> <p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:1b09b1b9-8833-44a4-a5d6-2a396135db14" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 38px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">CollectionView </span><span style="color: rgb(255, 0, 0);">ItemsSource</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Monkeys}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);">
+                ItemsLayout</span><span style="color: rgb(0, 0, 255);">="HorizontalList"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>For more info, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/user-interface/collectionview/layout" target="_blank">CollectionView Layout</a>.</p>
+<h3>Item Sizing Strategy</h3>
+<p>The <strong>ItemSizingStrategy</strong> enumeration is now implemented on Android. For more info, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/user-interface/collectionview/layout#item-sizing" target="_blank">Item sizing</a>.</p>
+<h3>SelectedItem and SelectedItems</h3>
+<p>The <strong>SelectedItem</strong> property now uses a <strong>TwoWay</strong> binding by default, and the selection can be cleared by setting the property, or the object it binds to, to <strong>null</strong>.</p>
+<p>The <strong>SelectedItems</strong> property now uses a <strong>OneWay</strong> binding by default, and is now bindable to view model properties. However, note that this property is defined as <strong>IList&lt;object&gt;,</strong> and must bind to a collection that implements <strong>IList</strong>, and that has an <strong>object</strong> generic type. Therefore, the bound collection should be, for example, <strong>ObservableCollection&lt;object&gt;</strong> rather than <strong>ObservableCollection&lt;Monkey&gt;. </strong>In addition, selections can be cleared by setting this property, of the collection it binds to, to <strong>null</strong>.</p>
+<p>For more info, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/user-interface/collectionview/selection" target="_blank">CollectionView Selection</a>.</p>

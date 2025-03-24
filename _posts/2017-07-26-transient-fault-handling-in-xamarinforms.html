@@ -1,0 +1,206 @@
+---
+layout: post
+title: Transient Fault Handling in Xamarin.Forms
+date: '2017-07-26T17:40:00.000+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-07-27T09:25:45.015+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7885044427758987076
+blogger_orig_url: https://dbritch.blogspot.com/2017/07/transient-fault-handling-in-xamarinforms.html
+---
+
+<p>All applications that communicate with remote services and resources must be sensitive to transient faults. Transient faults include the momentary loss of network connectivity to services, the temporary unavailability of a service, or timeouts that arise when a service is busy. These faults are often self-correcting, and if the remote access request is repeated after a suitable delay it’s likely to succeed.</p>
+<p>Transient faults can have a huge impact on the perceived quality of an application, even if it has been thoroughly tested under all forseeable circumstances. To ensure that an application that communicates with remote services operates reliably, it must be able to:</p>
+<ol>
+<li>Detect faults when they occur, and determine if the faults are likely to be transient. 
+<li>Retry the operation if it’s determined that the fault is likely to be transient, and keep track of the number of times the operation is retried. 
+<li>Use an appropriate retry strategy, which specifies the number of retries, the delay between each attempt, and the actions to take after a failed attempt.</li></ol>
+<p>This transient fault handling can be achieved by wrapping all attempts to access a remote service in code that implements the retry pattern.</p>
+<h3>Retry Pattern</h3>
+<p>If an application detects a failure when it tries to send a request to a remote service, it can handle the failure by:</p>
+<ul>
+<li>Retrying the operation – the application could retry the failing request immediately. 
+<li>Retrying the operation after a delay – the application could wait for a suitable amount of time before retrying the request. 
+<li>Cancelling the operation – the application should cancel the operation and report an exception.</li></ul>
+<p>The retry strategy should be tuned to match the business requirements of the application. For example, it’s important to optimize the retry count and retry interval to the operation being attempted. If the operation is part of a user interaction, the retry interval should be short and only a few retries attempted to avoid making users wait for a response. If the operation is part of a long running workflow, where cancelling or restarting the workflow is expensive of time-consuming, it’s appropriate to wait longer between attempts and retry more times.</p>
+<p>If a request still fails after a number of retries, it’s better for the app to prevent further requests going to the same resource and to report a failure. Then, after a set period, the application can make one or more requests to the resource to see if they’re successful. I’ll return to this topic in a future blog post.</p>
+<h5>Retrying after an Exponential Delay</h5>
+<p>If transient faults are occurring because a remote service is overloaded, or being throttled at the service end, the service could reject new requests. While this scenario can be handled by the retry pattern, it’s possible that retry requests could add to the overloading of the service, which means that the service could take longer to recover from its overloaded state.</p>
+<p>Exponential backoff attempts to deal with this problem by exponentially increasing the delay between retries, rather than retrying after a fixed delay. The purpose of this approach is give the service time to recover, in case the transient fault is due to a service overload. For example, when the initial request fails it can be retried after 1 second. If it fails for a second time, wait 2 seconds before the next retry. Then if the second retry fails, wait for 4 seconds before the next retry. </p>
+<h3>Implementing the Retry Pattern</h3>
+<p>In this blog post I’ll explain how I implemented the retry pattern, with exponential backoff. The advantage of the approach presented here is that the retry pattern is implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>My implementation of the retry pattern adds to Xamarin’s <a href="https://developer.xamarin.com/samples/xamarin-forms/WebServices/TodoREST/" target="_blank">TodoREST</a> sample. This sample demonstrates a Todo list application where the data is stored and accessed from a RESTful web service, hosted by Xamarin. However, I’ve modified the original implementation so that the <strong>RestService</strong> class moves some of its responsibilities to the <strong>RequestProvider</strong> class, which handles all REST requests.This ensures that all REST requests are made by a single class, which has a single responsibility. The following code example shows the <strong>GetAsync</strong> method from the <strong>RequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:a775344a-6ade-40cc-98ad-b10a51fb990f" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 129px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+    response.EnsureSuccessStatusCode();
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Note, however, that the sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientREST" target="_blank">GitHub</a>, doesn’t use the <strong>RequestProvider</strong> class. It’s included purely for comparison with the <strong>ResilientRequestProvider</strong> class, which the application uses, and which implements the retry pattern.</p>
+<h5>Initialization</h5>
+<p>The <strong>App</strong> class in the sample application initializes the classes that are responsible for communicating with the REST service:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:93766d1b-3468-411f-a535-be5138f016bf" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 75px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">TodoManager </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TodoItemManager (
+    </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RestService (
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ResilientRequestProvider(
+            </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RetryWithExponentialBackoff())));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RestService</strong> class provides data to the <strong>TodoItemManager</strong> class, with the <strong>RestService</strong> class making REST calls using the <strong>ResilientRequestProvider</strong> class, which uses the <strong>RetryWithExponentialBackoff</strong> class to implement the retry pattern, using exponential backoff.</p>
+<h5>ResilientRequestProvider</h5>
+<p>The following code example shows the <strong>GetAsync</strong> method from the <strong>ResilientRequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:094e5c53-e4df-4c35-91db-2b5d73c66d81" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 311px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> HttpInvoker(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await retry.RetryOnExceptionAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpRequestException</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(operation);
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+    var httpResponse </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await HttpInvoker(async () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode();
+        serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+    });
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Notice that the code from the <strong>GetAsync</strong> method in the <strong>RequestProvider</strong> class is still present, but is now specified as a lambda expression. This lambda expression is passed to the <strong>HttpInvoker</strong> method, which in turn passes it to the <strong>RetryOnExceptionAsync</strong> method of the <strong>RetryWithExponentialBackoff</strong> class. Therefore, the code in the lambda expression is what will be retried if the GET request fails.</p>
+<h5>RetryWIthExponentialBackoff</h5>
+<p>The <strong>RetryWithExponentialBackoff</strong> class has a constructor with three arguments, as shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:0cc75c41-f29f-49b7-95be-42fc6ecc6c63" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 111px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> RetryWithExponentialBackoff(</span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> retries </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">10</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> delay </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">200</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> maxDelay </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">2000</span><span style="color: rgb(0, 0, 0);">)
+{
+    maxRetries </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> retries;
+    delayMilliseconds </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> delay;
+    maxDelayMilliseconds </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> maxDelay;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The constructor arguments specify a maximum number of retries, the initial delay between retries (in milliseconds), and a maximum delay between retries (in milliseconds). However, the three constructor arguments also specify default values, allowing a parameterless constructor to be specified when the class is initialised in the <strong>App</strong> class.</p>
+<p>The <strong>RetryOnExceptionAsync</strong> method in the <strong>RetryWithExponentialBackoff</strong> class is shown in the following code example:</p>
+
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:050d965a-b755-496f-9bca-5251da42236e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 399px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> RetryOnExceptionAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TException</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation) </span><span style="color: rgb(0, 0, 255);">where</span><span style="color: rgb(0, 0, 0);"> TException : Exception
+{
+    HttpResponseMessage response;
+    var backoff </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ExponentialBackoff(maxRetries, delayMilliseconds, maxDelayMilliseconds);
+    </span><span style="color: rgb(0, 0, 255);">while</span><span style="color: rgb(0, 0, 0);"> (</span><span style="color: rgb(0, 0, 255);">true</span><span style="color: rgb(0, 0, 0);">)
+    {
+        </span><span style="color: rgb(0, 0, 255);">try</span><span style="color: rgb(0, 0, 0);">
+        {
+            response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await operation();
+            </span><span style="color: rgb(0, 0, 255);">break</span><span style="color: rgb(0, 0, 0);">;
+        }
+        </span><span style="color: rgb(0, 0, 255);">catch</span><span style="color: rgb(0, 0, 0);"> (Exception ex) when (ex </span><span style="color: rgb(0, 0, 255);">is</span><span style="color: rgb(0, 0, 0);"> TimeoutException </span><span style="color: rgb(0, 0, 0);">||</span><span style="color: rgb(0, 0, 0);">
+                                   ex </span><span style="color: rgb(0, 0, 255);">is</span><span style="color: rgb(0, 0, 0);"> TException)
+        {
+            Debug.WriteLine(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Exception: </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 0);">+</span><span style="color: rgb(0, 0, 0);"> ex.Message);
+            await backoff.Delay();
+        }
+    }
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>This method is responsible for implementing the retry pattern - retrying failed operations with an exponential backoff up to a maximum number of retries. It uses an infinite loop to execute the operation that was specified as a lambda expression in the <strong>GetAsync</strong> method in the <strong>ResilientRequestProvider</strong> class. If the operation succeeds the infinite loop is broken out of, and the response received from the web service is returned. However, if the operation fails due to a transient fault, that is a <strong>TimeoutException</strong> or a <strong>HttpRequestException</strong>, the operation is retried after a delay controlled by the <strong>ExponentialBackoff</strong> class.</p>
+<p>Obviously, the implementation of the <strong>RetryWithExponentialBackoff</strong> class could be tidied up so that it takes a dependency on an <strong>IBackoff</strong> type, which the <strong>ExponentialBackoff</strong> struct would implement. This would allow different backoff strategy implementations to easily be swapped in and out. However, the current implementation does adequately demonstrates what I’m trying to show – retrying requests that failed due to transient faults.</p>
+<h5>ExponentialBackoff</h5>
+<p>The <strong>ExponentialBackoff</strong> struct has a constructor requiring three arguments:</p>
+
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e6a40191-34ec-4705-a49e-56a0f6a6b8b3" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 150px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> ExponentialBackoff(</span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> noOfRetries, </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> delay, </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> maxDelay)
+{
+    maxRetries </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> noOfRetries;
+    delayMilliseconds </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> delay;
+    maxDelayMilliseconds </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> maxDelay;
+    retries </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">;
+    pow </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">1</span><span style="color: rgb(0, 0, 0);">;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div><br>All three arguments must be specified when creating an instance of the struct, and they should be identical to the values of the arguments in the <strong>RetryWithExponentialBackoff</strong> class constructor.
+
+<p>The <strong>RetryOnExceptionAsync</strong> method in the <strong>RetryWithExponentialBackoff</strong> class invokes the <strong>Delay</strong> method in the <strong>ExponentialBackoff</strong> class if a transient fault has occurred. The <strong>Delay</strong> method is shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6390d8e9-cf79-4676-b058-91e7daf9a21e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 315px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> Task Delay()
+{
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (retries </span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);"> maxRetries)
+    {
+        retries</span><span style="color: rgb(0, 0, 0);">++</span><span style="color: rgb(0, 0, 0);">;
+        pow </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> pow </span><span style="color: rgb(0, 0, 0);">&lt;&lt;</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">1</span><span style="color: rgb(0, 0, 0);">;
+    }
+    </span><span style="color: rgb(0, 0, 255);">else</span><span style="color: rgb(0, 0, 0);">
+    {
+        </span><span style="color: rgb(0, 0, 255);">throw</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TimeoutException($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">{maxRetries} retry attempts made. Retries failed.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> delay </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Math.Min(delayMilliseconds </span><span style="color: rgb(0, 0, 0);">*</span><span style="color: rgb(0, 0, 0);"> (pow </span><span style="color: rgb(0, 0, 0);">-</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">1</span><span style="color: rgb(0, 0, 0);">) </span><span style="color: rgb(0, 0, 0);">/</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">2</span><span style="color: rgb(0, 0, 0);">, maxDelayMilliseconds);
+    Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Retry {retries} after {delay} milliseconds delay. Maximum delay is {maxDelayMilliseconds} milliseconds.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> Task.Delay(delay);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method implements a roughly exponential delay, up to a maximum number of milliseconds specified by the <strong>maxDelayMilliseconds</strong> variable, while ensuring that the maximum number of retry attempts isn’t exceeded by throwing a <strong>TimeoutException</strong> when the number of actual retries is equal to the maximum number of retries allowed.</p>
+<h3>Running the Sample Application</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientREST" target="_blank">GitHub</a>, connects to a read-only REST service hosted by Xamarin, and it’s most likely that when running the sample the GET operation will succeed on first attempt. To observe the retry pattern in operation, change the <strong>RestUrl</strong> property in the <strong>Constants</strong> class to an address that doesn’t exist – this can be accomplished by adding a random character to the end of the existing string. Then run the application and observe the output in the output window in Visual Studio. You should see something like:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:2a1f08aa-1c9c-4900-97a2-f954eff3d44d" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 463px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">1</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">100</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">2</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">300</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Thread started: &lt;Thread Pool&gt; #</span><span style="color: rgb(0, 0, 0);">10</span><span style="color: rgb(0, 0, 0);">
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">3</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">700</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">4</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">1500</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">5</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">6</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">7</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">8</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Thread started: &lt;Thread Pool&gt; #</span><span style="color: rgb(0, 0, 0);">11</span><span style="color: rgb(0, 0, 0);">
+Thread started: &lt;Thread Pool&gt; #</span><span style="color: rgb(0, 0, 0);">12</span><span style="color: rgb(0, 0, 0);">
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">9</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">10</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds delay. Maximum delay is </span><span style="color: rgb(0, 0, 0);">2000</span><span style="color: rgb(0, 0, 0);"> milliseconds.
+Exception: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+ERROR: </span><span style="color: rgb(0, 0, 0);">10</span><span style="color: rgb(0, 0, 0);"> retry attempts made. Retries failed.</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This shows the GET operation being retried 10 times, after a roughly exponential increasing delay, up to a maximum of 2000 milliseconds. Remember that the number of retries, initial delay (in milliseconds), and maximum delay (in milliseconds) can be specified when creating the <strong>RetryWithExponentialBackoff</strong> instance. This allows the retry pattern to be customized to fit individual application requirements.</p>
+<h3>Summary</h3>
+<p>The retry pattern allows applications to retry a failing request to a remote service, after a suitable delay. Remote access requests that are repeated after a suitable delay are likely to succeed, if the fault in the remote service is transient.</p>
+<p>This blog post has explained how to implement the retry pattern, with exponential backoff. The number of retries, initial delay, and maximum delay can all be specified, allowing the retry pattern to be customized to fit individual application requirements.The advantage of the approach presented here is that the retry pattern is implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>In my next blog post I’ll show how to re-implement the retry pattern using <a href="https://github.com/App-vNext/Polly" target="_blank">Polly</a>.</p>

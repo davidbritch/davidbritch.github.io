@@ -1,0 +1,97 @@
+---
+layout: post
+title: Bind from a ControlTemplate to a ViewModel with Xamarin.Forms
+date: '2019-11-01T12:31:00.000Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2019-11-01T12:54:32.181Z'
+thumbnail: https://2.bp.blogspot.com/-oEfG-iWGXho/XbwpQat5vCI/AAAAAAAADDs/aL7Y9_pCSFwcvpMSb8V3aW3Qeu72N2B0wCPcBGAYYCw/s72-c/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-11-01%2Bat%2B12.14.17.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-2078975259142189551
+blogger_orig_url: https://dbritch.blogspot.com/2019/11/bind-from-controltemplate-to-viewmodel.html
+---
+
+<p>The best new feature in Xamarin.Forms 4.3 is relative bindings. Relative bindings provide the ability to set the binding source relative to the position of the binding target, and are created with the <strong>RelativeSource</strong> markup extension, and set as the <strong>Source</strong> property of a binding expression. For more informatoin about relative bindings, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/app-fundamentals/data-binding/relative-bindings">Xamarin.Forms Relative Bindings</a>.</p><p>Relative bindings support a number of modes, including binding to self, binding to an ancestor, and binding from within a <strong>ControlTemplate</strong> to the templated parent (the runtime object instance to which the template is applied). They also support binding to a view model from within a <strong>ControlTemplate</strong>, even when the <strong>ControlTemplate</strong> binds to the templated parent. This makes it possible to support scenarios such as a <strong>ControlTemplate</strong> containing a <strong>Button</strong> that binds to a view model <strong>ICommand</strong>, while other controls in the <strong>ControlTemplate</strong> bind to the templated parent. This blog post will look at doing this.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/BindFromControlTemplateToViewModel">GitHub</a>.</p><h3>Implementation</h3><p>To demonstrate this scenario, I have a <strong>PeopleViewModel</strong> class that defines an <strong>ObservableCollection</strong> named <strong>People</strong>, and an <strong>ICommand</strong> named <strong>DeletePersonCommand</strong>:</p><p><pre><code class="cs">    public class PeopleViewModel
+    {
+        public ObservableCollection<person> People { get; set; }
+
+        public ICommand DeletePersonCommand { get; private set; }
+
+        public PeopleViewModel()
+        {
+            DeletePersonCommand = new Command((name) =>
+            {
+                People.Remove(People.FirstOrDefault(p => p.Name.Equals(name)));
+            });
+
+            People = new ObservableCollection<person>
+            {
+                new Person
+                {
+                    Name = "John Doe",
+                    Description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit..."
+                },
+                new Person
+                {
+                    Name = "Jane Doe",
+                    Description = "Phasellus eu convallis mi. In tempus augue eu dignissim fermentum..."
+                },
+                new Person
+                {
+                    Name = "Xamarin Monkey",
+                    Description = "Aliquam sagittis, odio lacinia fermentum dictum, mi erat scelerisque..."
+                }
+            };
+        }
+    }</code></pre></p><p>There’s also a <strong>ContentPage</strong> whose <strong>BindingContext</strong> is set to a <strong>PeopleViewModel</strong> instance. The <strong>ContentPage</strong> contains a <strong>StackLayout</strong> which uses a bindable layout to bind to the <strong>People</strong> collection:</p><p><pre><code class="xml">&lt;ContentPage ...&gt;
+    &lt;ContentPage.BindingContext&gt;
+        &lt;local:PeopleViewModel /&gt;
+    &lt;/ContentPage.BindingContext&gt;
+
+    &lt;StackLayout Margin=&quot;10,35,10,10&quot;
+                 BindableLayout.ItemsSource=&quot;{Binding People}&quot;
+                 BindableLayout.ItemTemplate=&quot;{StaticResource PersonTemplate}&quot; /&gt;
+
+&lt;/ContentPage&gt;</code></pre></p><p>The <strong>ItemTemplate</strong> of the bindable layout is set to the <strong>PersonTemplate</strong> resource:</p><p><pre><code class="xml">        &lt;DataTemplate x:Key=&quot;PersonTemplate&quot;&gt;
+            &lt;local:CardView BorderColor=&quot;DarkGray&quot;
+                            CardName=&quot;{Binding Name}&quot;
+                            CardDescription=&quot;{Binding Description}&quot;
+                            ControlTemplate=&quot;{StaticResource CardViewControlTemplate}&quot; /&gt;
+        &lt;/DataTemplate&gt;</code></pre></p><p>This <strong>DataTemplate</strong> specifies that each item in the <strong>People</strong> collection will be displayed using a <strong>CardView</strong> object that simply defines <strong>CardName</strong>, <strong>CardDescription</strong>, <strong>BorderColor</strong>, and <strong>CardColor</strong> bindable properties. The appearance of each <strong>CardView</strong> object is defined using a <strong>ControlTemplate</strong> named <strong>CardViewControlTemplate</strong>:</p><p><pre><code class="xml">        &lt;ControlTemplate x:Key=&quot;CardViewControlTemplate&quot;&gt;
+            &lt;Frame BindingContext=&quot;{Binding Source={RelativeSource TemplatedParent}}&quot;
+                   BackgroundColor=&quot;{Binding CardColor}&quot;
+                   BorderColor=&quot;{Binding BorderColor}&quot;
+                   CornerRadius=&quot;5&quot;
+                   HasShadow=&quot;True&quot;
+                   Padding=&quot;8&quot;
+                   HorizontalOptions=&quot;Center&quot;
+                   VerticalOptions=&quot;Center&quot;&gt;
+                &lt;Grid&gt;
+                    &lt;Grid.RowDefinitions&gt;
+                        &lt;RowDefinition Height=&quot;75&quot; /&gt;
+                        &lt;RowDefinition Height=&quot;4&quot; /&gt;
+                        &lt;RowDefinition Height=&quot;Auto&quot; /&gt;
+                    &lt;/Grid.RowDefinitions&gt;
+                    &lt;Label Text=&quot;{Binding CardName}&quot;
+                           FontAttributes=&quot;Bold&quot;
+                           FontSize=&quot;Large&quot;
+                           VerticalTextAlignment=&quot;Center&quot;
+                           HorizontalTextAlignment=&quot;Start&quot; /&gt;
+                    &lt;BoxView Grid.Row=&quot;1&quot;
+                             BackgroundColor=&quot;{Binding BorderColor}&quot;
+                             HeightRequest=&quot;2&quot;
+                             HorizontalOptions=&quot;Fill&quot; /&gt;
+                    &lt;Label Grid.Row=&quot;2&quot;
+                           Text=&quot;{Binding CardDescription}&quot;
+                           VerticalTextAlignment=&quot;Start&quot;
+                           VerticalOptions=&quot;Fill&quot;
+                           HorizontalOptions=&quot;Fill&quot; /&gt;
+                    &lt;Button Text=&quot;Delete&quot;
+                            Command=&quot;{Binding Source={RelativeSource AncestorType={x:Type local:PeopleViewModel}}, 
+                                              Path=DeletePersonCommand}&quot;
+                            CommandParameter=&quot;{Binding CardName}&quot;
+                            HorizontalOptions=&quot;End&quot; /&gt;
+                &lt;/Grid&gt;
+            &lt;/Frame&gt;
+        &lt;/ControlTemplate&gt;</code></pre></p><p>The root element of the <strong>CardViewControlTemplate</strong> is a <strong>Frame</strong> object. whose <strong>BindingContext </strong>is set to its templated parent (the <strong>CardView</strong>). Therefore, the<strong> Frame</strong> object, and all of its children, will resolve their bindings against <strong>CardView</strong> properties. </p><p>However, the <strong>Button</strong> within the <strong>CardViewControlTemplate</strong> binds to both its templated parent (the <strong>CardView</strong>), and to the <strong>ICommand</strong> in the <strong>PeopleViewModel</strong> instance. How is this possible? It’s possible because the <strong>Button.Command</strong> property redefines its binding source to be the binding context of an ancestor whose binding context type is <strong>PeopleViewModel</strong>. Let’s delve into this a little more.</p><p>The <strong>RelativeSource</strong> markup extension has a <strong>Mode</strong> property that can be set to one of the values of the <strong>RelativeBindingSourceMode</strong> enumeration: <strong>Self</strong>, <strong>FindAncestor</strong>, <strong>FindAncestorBindingContext</strong>, and <strong>TemplatedParent</strong>. The <strong>Mode</strong> property is the <strong>ContentProperty</strong> of the <strong>RelativeSourceExtension</strong> class, and so explicitly setting it using <strong>Mode=</strong> can be eliminated. In addition, the <strong>RelativeSource</strong> markup extension has a <strong>AncestorType</strong> property. Setting the <strong>AncestorType</strong> property to a type that derives from <strong>Element</strong> (any Xamarin.Forms control, or <strong>ContentView</strong>) will set the <strong>Mode</strong> property to <strong>FindAncestor</strong>. Similarly, setting the <strong>AncestorType</strong> property to a type that doesn’t derive from <strong>Element</strong> will set the <strong>Mode</strong> property to <strong>FindAncestorBindingContext</strong>.</p><p>Therefore, the relative binding expression <strong>Command=”{Binding Source={RelativeSource AncestorType={x:Type local:PeopleViewModel}}, Path=DeletePersonCommand}”</strong> sets the <strong>Mode</strong> property to <strong>FindAncestorBindingContext</strong>, because the type specified in the <strong>AncestorType</strong> property doesn’t derive from <strong>Element</strong>. The <strong>Source</strong> property is set the <strong>BindingContext</strong> property of the ancestor whose binding context is of type <strong>PeopleViewModel</strong>, which in this case is the <strong>StackLayout</strong>. The <strong>Path</strong> part of the expression can then resolve the <strong>DeletePersonCommand</strong> property. However, the <strong>Button.CommandParameter</strong> property doesn’t alter its binding source, instead inheriting it from its parent in the <strong>ControlTemplate</strong>. Therefore, this property binds to the <strong>CardName</strong> property of the <strong>CardView</strong>. The overall effect of the <strong>Button</strong> bindings is that when the <strong>Button</strong> is clicked, the <strong>DeletePersonCommand </strong>in the <strong>PeopleViewModel</strong> class is executed, with the value of the <strong>CardName</strong> property being passed to the <strong>ICommand</strong>.</p><p><h3>Summary</h3><p>The overall effect of this code is that <strong>StackLayout</strong> uses a bindable layout to display a collection of <strong>CardView</strong> objects:</p><p><div class="separator" style="clear: both; text-align: center;"><a href="https://2.bp.blogspot.com/-oEfG-iWGXho/XbwpQat5vCI/AAAAAAAADDs/aL7Y9_pCSFwcvpMSb8V3aW3Qeu72N2B0wCPcBGAYYCw/s1600/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-11-01%2Bat%2B12.14.17.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://2.bp.blogspot.com/-oEfG-iWGXho/XbwpQat5vCI/AAAAAAAADDs/aL7Y9_pCSFwcvpMSb8V3aW3Qeu72N2B0wCPcBGAYYCw/s400/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-11-01%2Bat%2B12.14.17.png" width="185" height="400" data-original-width="739" data-original-height="1600" /></a></div></p><p>The appearance of each <strong>CardView</strong> object is defined by a <strong>ControlTemplate</strong>, whose controls bind to properties on its templated parent (the <strong>CardView</strong>). However, the <strong>Button</strong> in the <strong>ControlTemplate</strong> redefines its binding source to be an <strong>ICommand</strong> in a view model. When clicked, the <strong>Button</strong> removes the specified <strong>CardView</strong> from the bindable layout:</p><p><div class="separator" style="clear: both; text-align: center;"><a href="https://3.bp.blogspot.com/-dvwVzN_7b04/XbwpWe7y0mI/AAAAAAAADDw/mjeQY81heEEtmy9wxCoIq82Q8lKLA2ptwCPcBGAYYCw/s1600/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-11-01%2Bat%2B12.14.23.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" src="https://3.bp.blogspot.com/-dvwVzN_7b04/XbwpWe7y0mI/AAAAAAAADDw/mjeQY81heEEtmy9wxCoIq82Q8lKLA2ptwCPcBGAYYCw/s400/Simulator%2BScreen%2BShot%2B-%2BiPhone%2BX%2B-%2B2019-11-01%2Bat%2B12.14.23.png" width="185" height="400" data-original-width="563" data-original-height="1218" /></a></div><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/BindFromControlTemplateToViewModel">GitHub</a>.</p>

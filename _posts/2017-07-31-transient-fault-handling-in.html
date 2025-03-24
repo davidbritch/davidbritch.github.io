@@ -1,0 +1,128 @@
+---
+layout: post
+title: Transient Fault Handling in Xamarin.Forms using Polly
+date: '2017-07-31T07:00:00.001+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-07-31T07:00:09.216+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4522502273569602430
+blogger_orig_url: https://dbritch.blogspot.com/2017/07/transient-fault-handling-in.html
+---
+
+<p><a href="http://www.davidbritch.com/2017/07/transient-fault-handling-in-xamarinforms.html" target="_blank">Previously</a> I wrote about transient fault handling in Xamarin.Forms, and discussed an implementation of the retry pattern that uses exponential backoff. The advantage of the implementation was that the retry pattern was implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>There are, however, transient fault handling libraries available and the go to library for .NET is <a href="https://github.com/App-vNext/Polly" target="_blank">Polly</a>, which includes fluent support for the retry pattern, circuit breaker pattern, bulkhead isolation, and more. In Polly, these patterns are implemented via fault handling policies, which handle specific exceptions thrown by, or results returned by, the delegates that are executed through the policy.</p>
+<p>This blog post will discuss using Polly’s <strong>RetryPolicy</strong>, which implements the retry pattern.</p>
+<h3>Implementation</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientRESTPolly" target="_blank">GitHub</a>, is similar to the sample application from my <a href="http://www.davidbritch.com/2017/07/transient-fault-handling-in-xamarinforms.html" target="_blank">previous</a> blog post, with the custom implementation of the retry pattern replaced with Polly’s.</p>
+<h5>Initialization</h5>
+<p>The <strong>App</strong> class in the sample application initializes the classes that are responsible for communicating with the REST service:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:1ee7dd13-fc74-4ea2-b618-58ee04c66578" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 79px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">TodoManager </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TodoItemManager(
+    </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RestService(
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ResilientRequestProvider()));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RestService</strong> class provides data to the <strong>TodoItemManager</strong> class, with the <strong>RestService</strong> class making REST calls using the <strong>ResilientRequestProvider</strong> class, which uses Polly to implement the retry pattern, using exponential backoff.</p>
+<h5>ResilientRequestProvider</h5>
+<p>The following code example shows the <strong>GetAsync</strong> method from the <strong>ResilientRequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:e20b4a0c-ab68-4120-bd9f-76aa98139ac9" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 316px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> HttpInvoker(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await retryPolicy.ExecuteAsync(operation);
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+    var httpResponse </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await HttpInvoker(async () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode();
+        serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+    });
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>GetAsync</strong> method code is identical to my <a href="http://www.davidbritch.com/2017/07/transient-fault-handling-in-xamarinforms.html" target="_blank">previous</a> blog post. The lambda expression is passed to the <strong>HttpInvoker</strong> method, which in turn passes it to the <strong>ExecuteAsync</strong> method of the <strong>RetryPolicy</strong> instance. Therefore, the code in the lambda expression is what will be retried if the GET request fails.</p>
+<p>The <strong>RetryPolicy</strong> type is a Polly type, which represents a retry policy that can be applied to delegates that return a value of type<strong> T</strong>. The following code example show the <strong>RetryPolicy&lt;T&gt;</strong> declaration from the sample application:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:30543167-82ec-4923-9cad-c85e882a24a4" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 36px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">RetryPolicy</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> retryPolicy;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This declares a <strong>RetryPolicy</strong> that can be applied to delegates that return a <strong>HttpResponseMessage</strong>.</p>
+<p>There are 3 steps to using a fault handling policy, including the <strong>RetryPolicy&lt;T&gt;</strong> type, in Polly:</p>
+<ol>
+<li>Specify the exceptions you want the policy to handle. 
+<li>Optionally specify the returned results you want the policy to handle. 
+<li>Specify how the policy should handle any faults.</li></ol>
+<p>The following code example shows all three steps for defining the operation of the <strong>RetryPolicy&lt;T&gt;</strong> instance:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:c188acbb-1a8c-4423-99e1-3476e069743b" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 386px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">HttpStatusCode[] httpStatusCodesToRetry </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);">
+{
+    HttpStatusCode.RequestTimeout, </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> 408</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    HttpStatusCode.InternalServerError, </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> 500</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    HttpStatusCode.BadGateway, </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> 502</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    HttpStatusCode.ServiceUnavailable, </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> 503</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    HttpStatusCode.GatewayTimeout </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> 504</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">};
+
+retryPolicy </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Policy
+    .Handle</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TimeoutException</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">()
+    .Or</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpRequestException</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">()
+    .OrResult</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(r </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> httpStatusCodesToRetry.Contains(r.StatusCode))
+    .WaitAndRetryAsync(</span><span style="color: rgb(128, 0, 128);">3</span><span style="color: rgb(0, 0, 0);">,
+                       retryAttempt </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> TimeSpan.FromSeconds(Math.Pow(</span><span style="color: rgb(128, 0, 128);">2</span><span style="color: rgb(0, 0, 0);">, retryAttempt)),
+                       (response, delay, retryCount, context) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+{
+    Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Retry {retryCount} after {delay.Seconds} seconds delay due to {response.Exception.Message}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+});</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>Policy.Handle</strong> method is used to specify the exceptions and results you want the policy to handle. Here it specifies that the delegate should be retried if a <strong>TimeoutException</strong> or <strong>HttpRequestException</strong> occurs, or if the resulting <strong>HttpResponseMessage</strong> includes any of the HTTP status codes contained in the <strong>httpStatusCodesToRetry</strong> array. Therefore, the <strong>RetryPolicy&lt;T&gt;</strong> instance handles both exceptions and return values in a single policy.</p>
+<p>After specifying the exceptions and results you want the policy to handle, you must specify how the policy should handle any faults. Several of Polly’s methods can be used here, including <strong>Retry</strong>, <strong>RetryForever</strong>, <strong>WaitAndRetry</strong>, or <strong>WaitAndRetryForever</strong> (along with their async variants). I chose to use one of the <strong>WaitAndRetryAsync</strong> overloads, for which three arguments must be specified:</p>
+<ol>
+<li>The maximum number of retries to make. Note that the overall number of attempts that will be made is one plus the number of retries configured. Therefore, four attempts can be made with this code: the initial attempt, plus up to three retries.
+<li>A delegate, expressed here as a lambda expression, that calculates the duration to wait between retries based on the current retry attempt. 
+<li>An action to be called on each retry, that provides the current exception, duration, retry count, and context.</li></ol>
+<p>The advantage of using this overload is that it allows an exponential backoff strategy to be specified through calculation, and to output messages as retries are attempted.</p>
+<h3>Executing an Action through the Policy</h3>
+<p>The overall operation is that the <strong>GetAsync</strong> method in the <strong>ResilientRequestProvider</strong> class invokes the <strong>HttpInvoker</strong> method, passing an action that represents the GET request. The <strong>HttpInvoker</strong> method invokes Polly’s <strong>RetryPolicy.ExecuteAsync</strong> method, passing the received action as an argument.</p>
+<p>The retry policy then attempts the action passed in via the <strong>ExecuteAsync</strong> method. If the action executes successfully, the return value is returned and the policy exits. If the action throws an unhandled exception, it’s rethrown and the policy exits – no further retries are made. However, if the action throws a handled exception, the policy performs the following operations:</p>
+<ul>
+<li>Counts the exception.</li>
+<li>Checks whether another retry is permitted:</li>
+<ul>
+<li>If not, the exception is rethrown and the policy terminates.</li>
+<li>If another try is permitted, the policy calculates the duration to wait from the supplied sleep duration configuration, waits for the calculation duration, and returns to the beginning of the cycle to retry executing the action again.</li></ul></ul>
+<h3>Running the Sample Application</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TransientRESTPolly" target="_blank">GitHub</a>, connects to a read-only REST service hosted by Xamarin, and it’s most likely that when running the sample the GET operation will succeed on first attempt. To observe the retry pattern in operation, change the <strong>RestUrl</strong> property in the <strong>Constants</strong> class to an address that doesn’t exist – this can be accomplished by adding a random character to the end of the existing string. Then run the application and observe the output window in Visual Studio. You should see something like:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:71a8943a-d318-4b4f-9f19-eb9f64c48379" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 132px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">Retry </span><span style="color: rgb(0, 0, 0);">1</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">2</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Thread started: &lt;Thread Pool&gt; #</span><span style="color: rgb(0, 0, 0);">10</span><span style="color: rgb(0, 0, 0);">
+Thread started: &lt;Thread Pool&gt; #</span><span style="color: rgb(0, 0, 0);">11</span><span style="color: rgb(0, 0, 0);">
+Retry </span><span style="color: rgb(0, 0, 0);">2</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">4</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+Retry </span><span style="color: rgb(0, 0, 0);">3</span><span style="color: rgb(0, 0, 0);"> after </span><span style="color: rgb(0, 0, 0);">8</span><span style="color: rgb(0, 0, 0);"> seconds delay due to </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)
+ERROR: </span><span style="color: rgb(0, 0, 0);">404</span><span style="color: rgb(0, 0, 0);"> (Not Found)</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This shows the GET operation being retried 3 times, after an exponentially increasing delay. Remember that the number of retries, and backoff strategy can be specified with Polly’s <strong>WaitAndRetry</strong> method. This allows the <strong>RetryPolicy</strong> to be customized to fit individual application requirements.</p>
+<p>The advantage of using Polly over implementing your own retry pattern is that Polly includes multiple transient fault handling patterns that can easily be combined for additional resilience when handling transient faults.</p>
+<h3>Summary</h3>
+<p>Polly is a .NET transient fault handling library, which includes fluent support for the retry pattern. In Polly, the retry pattern is implemented by the <strong>RetryPolicy</strong> type, which handles specific exceptions thrown by, or results returned by, the delegates that are executed through the policy.</p>
+<p>The <strong>RetryPolicy</strong> type is highly configurable, allowing you to specify the exceptions to be handled, the return results to be handled, and how the policy should handle any faults.</p>
+<p>The advantage of using Polly over implementing your own retry pattern is that Polly includes multiple transient fault handling patterns that can easily be combined for additional resilience when handling transient faults.</p>

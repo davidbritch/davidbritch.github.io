@@ -1,0 +1,57 @@
+---
+layout: post
+title: Xamarin.Forms Compiled Bindings FAQ
+date: '2018-10-25T13:50:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-10-25T13:50:40.945+01:00'
+thumbnail: https://lh3.googleusercontent.com/-LQm8RYeNYH8/W9F9qZXbUII/AAAAAAAAC78/W5it_B3Fa9ERE_FZyvppLLbyJfnwAW6PQCHMYCw/s72-c/bindings_thumb?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-1267379695087793784
+blogger_orig_url: https://dbritch.blogspot.com/2018/10/xamarinforms-compiled-bindings-faq.html
+---
+
+<p>We recently announced compiled bindings for Xamarin.Forms. Bindings aren’t cost efficient because they are resolved at runtime using reflection. In some scenarios this can introduce a performance hit. In addition, there isn’t any compile-time validation of binding expressions, and so invalid bindings aren’t detected until runtime.</p><p>
+Compiled bindings aim to improve data binding performance in Xamarin.Forms applications by resolving binding expressions at compile-time, rather than runtime. As well as providing compile-time validation of binding expressions, more importantly they eliminate the reflection used to resolve the bindings at runtime.</p><p>
+How compiled bindings are used is documented <a href="https://docs.microsoft.com/xamarin/xamarin-forms/app-fundamentals/data-binding/compiled-bindings">here</a>. Rather than repeat all that information, I thought it might be useful to provide a high-level FAQ about them. So here goes.</p><h3>How do compiled bindings work?</h3><p>
+When you create a binding in Xamarin.Forms XAML, it’s accomplished with the <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Xaml/MarkupExtensions/BindingExtension.cs">Binding markup extension</a>, which in turn creates a <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Core/Binding.cs">Binding</a><strong></strong>, which in turn inherits from the <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Core/BindingBase.cs">BindingBase</a> class. This is what we call a <em>classic</em> binding. When you create a <em>compiled</em> binding in Xamarin.Forms XAML, it’s accomplished with the <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Xaml/MarkupExtensions/BindingExtension.cs">Binding markup extension</a>, which in turn creates a <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Core/TypedBinding.cs#L58">TypedBinding</a>, which in turn inherits from the <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Core/TypedBinding.cs#L13">TypedBindingBase</a> class, which in turn inherits from the <a href="https://github.com/xamarin/Xamarin.Forms/blob/master/Xamarin.Forms.Core/BindingBase.cs">BindingBase</a> class. This inheritance hierarchy is shown in the following simplified class diagram:<br>
+</p><p><a href="https://lh3.googleusercontent.com/-kGa2Bbkm2l4/W9F9pWTInhI/AAAAAAAAC74/3i_DupFGJ5kn07ctBM014nFBjP-FhVzxACHMYCw/s1600-h/bindings3"><img width="462" height="332" title="bindings" style="border: 0px currentcolor; border-image: none; padding-top: 0px; padding-right: 0px; padding-left: 0px; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="bindings" src="https://lh3.googleusercontent.com/-LQm8RYeNYH8/W9F9qZXbUII/AAAAAAAAC78/W5it_B3Fa9ERE_FZyvppLLbyJfnwAW6PQCHMYCw/bindings_thumb?imgmax=800" border="0"></a>
+
+</p><p>Rather than accept a binding path (like the <strong>Binding</strong> constructor does), the <strong>TypedBinding</strong> constructor takes a <strong>Func</strong> that gets the value from the source, an <strong>Action</strong> that sets it, and a list of property changed handlers. XAMLC then takes the binding path from your XAML and uses it to create the <strong>TypedBinding</strong> for you. Also, the <strong>Binding</strong> markup extension knows whether to return a <strong>Binding</strong> or a <strong>TypedBinding</strong>.</p>
+<h3>Are compiled bindings more performant than classic bindings?</h3><p>
+Yes. Classic bindings use reflection. Compiled bindings eliminate this reflection, replacing it with a <strong>Func</strong> to get data, an <strong>Action</strong> to set data, and a list of handlers for property change notification.</p>
+<h3>How much more performant are compiled bindings than classic bindings?</h3><p>
+How long is a piece of string? Ultimately it depends on the platform, OS, and the device but internal testing has shown that compiled bindings can be resolved 8-20 times quicker than classic bindings. See <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/app-fundamentals/data-binding/compiled-bindings#performance">Performance</a> for more information.</p>
+<h3>Which version of Xamarin.Forms supports compiled bindings?</h3><p>
+Compiled bindings have been present in Xamarin.Forms for a while, but at the time of writing I’d recommend using Xamarin.Forms 3.3 as more compiled binding scenarios are supported in this release.</p><h3>Can you create TypedBinding objects in code?</h3><p>
+Technically yes, but it's not recommended for the following reasons:<ol>
+</ol></p><ol><li>While the <b>TypedBinding</b> type is public, it's not intended to be used by app developers. It's public purely because it's consumed by the IL generated by XAMLC. It should be thought of as internal.</li><li>Consequently, the <b>TypedBinding</b> type deliberately won't appear in your IDE intelligence.</li><li>Why would you want to? You end writing code like this: </li></ol><div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:73b23199-d6a7-4abd-b6eb-5161c1bb09f3" style="margin: 0px; padding: 0px; float: none; display: inline;"><p><pre style="width: 851px; height: 202px; overflow: visible; background-color: white;"><div>
+<!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">var binding = new TypedBinding</span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ComplexMockViewModel</span><span style="color: rgb(255, 0, 0);">, string</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">(
+                cmvm =&gt; cmvm.Model.Model.Text,
+                (cmvm, s) =&gt; cmvm.Model.Model.Text = s, new [] 
+                {
+                    new Tuple</span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Func</span><span style="color: rgb(255, 0, 0);">&lt;ComplexMockViewModel, object</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">, string&gt;(cmvm=&gt;cmvm, "Model"),
+                    new Tuple</span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Func</span><span style="color: rgb(255, 0, 0);">&lt;ComplexMockViewModel, object</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">, string&gt;(cmvm=&gt;cmvm.Model, "Model"),
+                    new Tuple</span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Func</span><span style="color: rgb(255, 0, 0);">&lt;ComplexMockViewModel, object</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">, string&gt;(cmvm=&gt;cmvm.Model.Model, "Text")
+                })
+                { 
+                    Mode = BindingMode.OneWay 
+                };</span></div>
+</pre></p></div><p><div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:73b23199-d6a7-4abd-b6eb-5161c1bb09f3" style="margin: 0px; padding: 0px; float: none; display: inline;">
+</div></p>
+<h3>
+<br></h3><h3>Why do compiled bindings require XAMLC?</h3><p>
+XAMLC will take the binding path from your XAML binding expression and use it to create the <strong>TypedBinding</strong> for you. Thus avoiding writing code like above.</p>
+<h3>Do compiled bindings work when the BindingContext is set in code, rather than XAML?</h3><p>
+Yes.</p>
+<h3>Should I replace my classic bindings with compiled bindings?</h3><p>
+It’s up to you. If you don’t have a performance problem with your classic bindings, why bother replacing them? On the other hand, there’s no harm in replacing classic bindings with compiled bindings.</p><p>
+Really, the key scenario for replacing classic bindings with compiled bindings is where you’ve identified a performance problem. Maybe you have a performance problem in a <strong>ListView</strong> on Android. Try switching to compiled bindings there to see if it helps.</p>
+<h3>Can every classic binding be replaced with a compiled binding?</h3><p>
+No. Compiled bindings are currently disabled for any binding expressions that define the <strong>Source</strong> property. This is because the <strong>Source</strong> property is always set using the <strong>x:Reference</strong> markup extension, which can’t currently be resolved at compile time.</p>

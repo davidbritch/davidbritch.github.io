@@ -1,0 +1,213 @@
+---
+layout: post
+title: 'Fault Handling in Xamarin.Forms: Circuit Breaker'
+date: '2017-11-14T11:30:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-11-14T11:30:54.381Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-9128055192345548569
+blogger_orig_url: https://dbritch.blogspot.com/2017/11/fault-handling-in-xamarinforms-circuit.html
+---
+
+<p>Calls to remote services can fail due to transient faults, such as the momentary loss of network connectivity to services, the temporary unavailability of a service, or timeouts that arise when the service is busy. These faults are often self-correcting, and if the remote access request is repeated after a suitable delay, it’s likely to succeed. </p>
+<p>Earlier in the year I wrote about <a href="https://www.davidbritch.com/2017/07/transient-fault-handling-in.html" target="_blank">transient fault handling in Xamarin.Forms using the retry pattern</a>. The idea being that all attempts to access a remote service can be wrapped in code that retries the operation if it fails. However, there can also be situations where faults are not transient. Instead, they are due to unanticipated events, and might take longer to fix. Such faults can range from a partial loss of connectivity to a complete service failure. In such circumstances it’s pointless for an application to continually retry an operation that’s unlikely to succeed. Instead, the app should accept that the operation has failed and act accordingly.</p>
+<p>Faults that take a variable amount of time to recover from can be handled by the circuit breaker pattern, improving the stability and resiliency of an application.</p>
+<h3>Circuit Breaker Pattern</h3>
+<p>The circuit breaker pattern prevents an application from repeatedly trying to execute an operation that’s likely to fail. It monitors the number of recent failures that have occurred, and uses this information to decide whether to allow the operation to proceed, or whether to return an exception immediately. In addition, it also enables an application to detect whether the fault has been resolved, allowing the operation to be invoked again.</p>
+<p>The pattern is so named because it sets states that mimic the functionality of an electrical circuit breaker:</p>
+<ul>
+<li><strong>Closed</strong>. The remote access request is attempted. If the request fails a count of the number of recent failures is incremented. If this count exceeds a threshold within a time period, the circuit breaker is placed into <strong>Open</strong> state. A timeout timer then starts, to allow the problem that caused the failure to be fixed. When the timer expires the circuit breaker is placed into the <strong>Half-open</strong> state. 
+<li><strong>Open</strong>. The remote access request fails immediately and an exception is returned to the application. 
+<li><strong>Half-open</strong>. A limited number of remote access request are attempted. If the requests are successful, it’s assumed that the fault that was causing the failure has been fixed, and the circuit breaker is placed into the <strong>Closed</strong> state (while zeroing the failure counter). If any request fails it’s assumed that the fault is still present, and the circuit breaker is placed back into the <strong>Open</strong> state, where the timer restarts to allow the problem that caused the failure to be fixed.</li></ul>
+<h3>Implementation</h3>
+<p>In this blog post I’ll explain how I implemented the circuit breaker pattern. Patterns &amp; Practices describe an implementation of the pattern <a href="https://docs.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker#example" target="_blank">here</a>, but don’t provide a fully working implementation. Therefore, my implementation is an attempt to flesh out the code they provided with a fully working implementation. The advantage of the approach presented here is that the circuit breaker pattern is implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>My implementation of the circuit breaker pattern adds to Xamarin’s <a href="https://developer.xamarin.com/samples/xamarin-forms/WebServices/TodoREST/" target="_blank">TodoREST</a> sample. This sample demonstrates a Todo list application where the data is stored and accessed from a RESTful web service, hosted by Xamarin. However, I’ve modified the original implementation so that the <strong>RestService</strong> class moves some of its responsibilities to the <strong>RequestProvider</strong> class, which handles all REST requests. This ensures that all REST requests are made by a single class, which has a single responsibility. The following code example shows the <strong>GetAsync</strong> method from the <strong>RequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:d117c034-4293-4405-b229-53a345359e7f" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 122px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+    response.EnsureSuccessStatusCode();
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Note, however, that the sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/CircuitBreakerREST" target="_blank">GitHub</a>, doesn’t use the <strong>RequestProvider</strong> class. It’s included purely for comparison with the <strong>ResilientRequestProvider</strong> class, which the application uses, and which implements the circuit breaker pattern.</p>
+<h5>Initialization</h5>
+<p>The <strong>App</strong> class in the sample application initializes the classes that are responsible for communicating with the REST service:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:569b77b9-05a7-4d7a-b9f1-8a682fc3c19e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 78px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">TodoManager </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TodoItemManager(
+    </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RestService(
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ResilientRequestProvider(
+            </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> CircuitBreakerService(</span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(RestService).FullName, </span><span style="color: rgb(128, 0, 128);">1000</span><span style="color: rgb(0, 0, 0);">))));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RestService</strong> class provides data to the <strong>TodoItemManager</strong>, with the <strong>RestService</strong> class making REST calls using the <strong>ResilientRequestProvider</strong> class, which uses the <strong>CircuitBreakerService</strong> class to implement the circuit breaker pattern.</p>
+<h5>ResilientRequestProvider</h5>
+<p>The following code example shows the <strong>GetAsync</strong> method from the <strong>ResilientRequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:31890bad-37fc-4985-b77e-1cdd33207618" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 432px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> HttpInvoker(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await circuitBreakerService.InvokeAsync(
+        operation,
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Perform a different operation when the breaker is open</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        (circuitBreakerOpenException) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> 
+            Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Circuit is open. Exception: {circuitBreakerOpenException.InnerException}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">),
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Different exception thrown</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        (exception) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Operation failed. Exception: {exception.Message}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">)
+    );
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+    var httpResponse </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await HttpInvoker(async () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode();
+        serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+    });
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Notice that the code from the <strong>GetAsync</strong> method in the <strong>RequestProvider</strong> class is still present, but is now specified as a lambda expression. This lambda expression is passed to the <strong>HttpInvoker</strong> method, which it turn passes it to the <strong>InvokeAsync</strong> method of the <strong>CircuitBreakerService</strong> class. Therefore, the code in the lambda expression is what will be executed by the circuit breaker, provided it’s in a state that allows that. In addition, the <strong>HttpInvoker</strong> method catches the <strong>CircuitBreakerOpenException</strong> if the operation fails because the circuit breaker is open.</p>
+<h5>CircuitBreakerService</h5>
+<p>The <strong>CircuitBreakerService</strong> class has a constructor with two arguments, as shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:674c61c1-9e84-424c-8cac-9e01b9e5d971" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 112px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> CircuitBreakerService(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> resource, </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> openToHalfOpenWaitTime)
+{
+    _stateStore </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> CircuitBreakerStateStoreFactory.GetCircuitBreakerStateStore(resource);
+    _resourceName </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> resource;
+    _openToHalfOpenWaitTime </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TimeSpan(</span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">, openToHalfOpenWaitTime);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The constructor arguments specify a resource name that the circuit breaker is attempting to protect, and the time in milliseconds to wait when switching from the <strong>Open</strong> to <strong>Half-open</strong> state (the length of time the circuit breaker waits for the fault to be fixed). </p>
+<p>The <strong>InvokeAsync</strong> method in the <strong>CircuitBreakerService</strong> class is shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ffb1004a-fd98-49c2-974d-8670331d94d3" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 607px; overflow: auto; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> InvokeAsync(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    HttpResponseMessage response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (IsOpen)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Circuit breaker is open</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await WhenCircuitIsOpenAsync(operation);
+    }
+    </span><span style="color: rgb(0, 0, 255);">else</span><span style="color: rgb(0, 0, 0);">
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Circuit breaker is closed - execute the operation</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        </span><span style="color: rgb(0, 0, 255);">try</span><span style="color: rgb(0, 0, 0);">
+        {
+            response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await operation();
+        }
+        </span><span style="color: rgb(0, 0, 255);">catch</span><span style="color: rgb(0, 0, 0);"> (Exception ex)
+        {
+            </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Retrip the breaker immediately and throw the exception so that
+            </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> the caller can tell the type of exception that was thrown</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">            TrackException(ex);
+            </span><span style="color: rgb(0, 0, 255);">throw</span><span style="color: rgb(0, 0, 0);">;
+        }
+    }
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> InvokeAsync(
+    Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation, 
+    Action</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">CircuitBreakerOpenException</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> circuitBreakerOpenAction, 
+    Action</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Exception</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> anyOtherExceptionAction)
+{
+    HttpResponseMessage response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+
+    </span><span style="color: rgb(0, 0, 255);">try</span><span style="color: rgb(0, 0, 0);">
+    {
+        response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await InvokeAsync(operation);
+    }
+    </span><span style="color: rgb(0, 0, 255);">catch</span><span style="color: rgb(0, 0, 0);"> (CircuitBreakerOpenException ex)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Perform a different operation when the circuit breaker is open</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        circuitBreakerOpenAction(ex);
+    }
+    </span><span style="color: rgb(0, 0, 255);">catch</span><span style="color: rgb(0, 0, 0);"> (Exception ex)
+    {
+        anyOtherExceptionAction(ex);
+    }
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The first <strong>InvokeAsync</strong> method wraps an operation, specified as a <strong>Func</strong>. If the circuit breaker is closed, it invokes the <strong>Func</strong>. If the operation fails, an exception handler calls the <strong>TrackException</strong> method, which sets the circuit breaker state to <strong>Open</strong>. The second <strong>InvokeAsync</strong> method wraps an operation, specified as a <strong>Func</strong>, and an <strong>Action</strong> to be performed if a <strong>CircuitBreakerOpenException</strong> is thrown, and an <strong>Action</strong> to be performed when any other exception is thrown.</p>
+<p>If the circuit breaker is in an <strong>Open</strong> state, the <strong>InvokeAsync</strong> method calls the <strong>WhenCircuitIsOpenAsync</strong>, which is shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:b6c87f60-ed2c-4d16-8780-2521fd310f93" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 577px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> WhenCircuitIsOpenAsync(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    HttpResponseMessage response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (_stateStore.LastStateChangedDate </span><span style="color: rgb(0, 0, 0);">+</span><span style="color: rgb(0, 0, 0);"> _openToHalfOpenWaitTime </span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);"> DateTime.UtcNow)
+    {
+        </span><span style="color: rgb(0, 0, 255);">bool</span><span style="color: rgb(0, 0, 0);"> lockTaken </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">false</span><span style="color: rgb(0, 0, 0);">;
+        </span><span style="color: rgb(0, 0, 255);">try</span><span style="color: rgb(0, 0, 0);">
+        {
+            Monitor.TryEnter(_halfOpenSyncObject, </span><span style="color: rgb(0, 0, 255);">ref</span><span style="color: rgb(0, 0, 0);"> lockTaken);
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (lockTaken)
+            {
+                _stateStore.HalfOpen();
+                response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await operation();
+                _stateStore.Reset();
+                </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+            }
+        }
+        </span><span style="color: rgb(0, 0, 255);">catch</span><span style="color: rgb(0, 0, 0);"> (Exception ex)
+        {
+            _stateStore.Trip(ex);
+            </span><span style="color: rgb(0, 0, 255);">throw</span><span style="color: rgb(0, 0, 0);">;
+        }
+        </span><span style="color: rgb(0, 0, 255);">finally</span><span style="color: rgb(0, 0, 0);">
+        {
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (lockTaken)
+            {
+                Monitor.Exit(_halfOpenSyncObject);
+            }
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This method first checks if the circuit breaker open timeout has expired. If this is the case, the circuit breaker is set to a <strong>Half-open</strong> state, and then the operation specified by the <strong>Func</strong> is performed. If the operation is successful, the circuit breaker is reset to the <strong>Closed</strong> state. If the operation fails, it is tripped back to the <strong>Open</strong> state and the time the exception occurred is updated so that the circuit breaker will wait for a further period before trying to perform the operation again.</p>
+<p>If the circuit breaker has only been in an <strong>Open</strong> state for a short time (the open timeout hasn’t expired), the method throws a <strong>CircuitBreakerOpenException</strong> and returns the error that caused the circuit breaker to transition to the <strong>Open</strong> state.</p>
+<p>Note that the <strong>WhenCircuitIsOpenAsync</strong> method uses a lock to prevent the circuit breaker from trying to perform concurrent calls to the operation while it’s <strong>Half-open</strong>. A concurrent attempt to invoke the operation will be handled as if the circuit breaker was <strong>Open</strong>, and it’ll fail with a <strong>CircuitBreakerOpenException</strong>.</p>
+<h5>Running the Sample Application</h5>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/CircuitBreakerREST" target="_blank">GitHub</a>, connects to a read-only REST service hosted by Xamarin, and it’s most likely that when running the sample the GET operation will succeed on first attempt. To observe the circuit breaker pattern in operation, change the <strong>RestUrl</strong> property in the <strong>Constants</strong> class to an address that doesn’t exist – this can be accomplished by adding a random character to the existing string. Then run the application and observe the output in the output window in Visual Studio. You should see something like:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:193c75fd-5875-4c8e-a37d-605f9395c337" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 93px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">Circuit is closed. Executing operation.
+Tripping the circuit breaker.
+Operation failed. Exception: 404 (Not Found)
+ERROR: Value cannot be null.
+Parameter name: value</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>This shows attempted execution of the GET operation through the circuit breaker. Initially the circuit is <strong>Closed</strong> and so an attempt is made to execute the GET operation. The operation fails and so the circuit breaker is tripped, and the error message is presented to the user. Remember that the length of the circuit breaker open timeout can be specified through the <strong>CircuitBreakerService</strong> constructor. This allows the circuit breaker pattern to be customized to fit individual application requirements.</p>
+<h3>Summary</h3>
+<p>The circuit breaker pattern prevents an application from repeatedly trying to execute an operation that’s likely to fail. The pattern also enables an application to detect whether the fault has been resolved, allowing the operation to be invoked again. The pattern monitors the number of recent failures that have occurred, and uses this information to decide whether to allow the operation to proceed, or whether to return an exception immediately. It does this by setting states that mimic the functionality of an electrical circuit breaker.</p>
+<p>This blog post has described an implementation of the circuit breaker pattern, based on descriptions provided by Patterns &amp; Practices. The length of the circuit breaker open timeout can be specified, allowing the pattern to be customized to fit individual application requirements. The advantage of the approach presented here is that the circuit breaker pattern is implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>In my next blog post I’ll show how to re-implement the circuit breaker pattern using <a href="https://github.com/App-vNext/Polly" target="_blank">Polly</a>.</p>

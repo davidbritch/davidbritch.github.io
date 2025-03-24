@@ -1,0 +1,30 @@
+---
+layout: post
+title: Validating User Input in Xamarin.Forms
+date: '2017-03-03T12:38:00.000Z'
+author: David Britch
+tags:
+- ".NET"
+- Validation
+- C#
+- Xamarin
+modified_time: '2017-03-07T11:13:44.407Z'
+thumbnail: https://2.bp.blogspot.com/-zyalK_nSuXk/WL6VmZB9fII/AAAAAAAACxU/1-wgGGbwaus6JIsl-UjOVqO8U49crExFwCLcB/s72-c/validation.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-2891414096660934201
+blogger_orig_url: https://dbritch.blogspot.com/2017/03/validating-user-input-in-xamarinforms.html
+---
+
+<p>Any mobile app that accepts user input should ensure that the input is valid. This could involve, for example, checking that input contains only characters in a particular range, or is of a certain length. Without validation, a user can supply data that can cause the app to fail.</p>
+<p>In the context of MVVM, user input can be synchronously validated client-side in view model objects or in model objects. However, validating data in view models often means duplicating model properties. Instead, view models can delegate validation to the model objects they contain, with validation then being performed on the model objects. Validation rules can be specified on the model properties by using data annotations that derive from the <strong><a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a></strong> class.</p>
+<p>I’ve created a validation sample implements validation using this approach, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">GitHub</a>. The following diagram shows a high-level overview of the classes involved in validation:</p>
+<p><a href="https://2.bp.blogspot.com/-zyalK_nSuXk/WL6VmZB9fII/AAAAAAAACxU/1-wgGGbwaus6JIsl-UjOVqO8U49crExFwCLcB/s1600/validation.png"><img title="Validation classes" style="float: none; margin-left: auto; display: block; margin-right: auto" alt="Validation classes" src="https://2.bp.blogspot.com/-zyalK_nSuXk/WL6VmZB9fII/AAAAAAAACxU/1-wgGGbwaus6JIsl-UjOVqO8U49crExFwCLcB/s400/validation.png"" width="400" height="332"></a></p>
+<p>To participate in validation, model classes must derive from the <strong>ValidatableBase</strong> class, which provides an error container whose contents are updated whenever a model class property value changes. The <strong>Validator</strong> and <strong>ValidatableBase</strong> classes both implement <strong>INotifyPropertyChanged</strong> in order to provide property change notification.</p>
+<p>The <strong>SetProperty</strong> method in the <strong>ValidatableBase</strong> class performs validation when a model property is set to a new value. The validation rules come from data annotation attributes that derive from the <strong><a href="https://msdn.microsoft.com/en-us/library/system.componentmodel.dataannotations.validationattribute.aspx" target="_blank">ValidationAttribute</a></strong> class. The attributes are taken from the declaration of the model property being validated.</p>
+<p>Users are notified of validation errors by highlighting the controls that contain the invalid data with red borders, and by displaying error messages that inform the user why the data is invalid, as shown in the following screenshot:</p>
+<p><a href="https://3.bp.blogspot.com/-rhYuaQxnaiI/WLllXbfw7SI/AAAAAAAACw0/Zqvd6yxmE-sFWNATdswueqhr-u2QQ_lDQCLcB/s1600/Screen%2BShot%2B2017-03-03%2Bat%2B12.23.20.png"><img title="Validation errors" style="float: none; margin-left: auto; display: block; margin-right: auto" alt="Validation errors" src="https://3.bp.blogspot.com/-rhYuaQxnaiI/WLllXbfw7SI/AAAAAAAACw0/Zqvd6yxmE-sFWNATdswueqhr-u2QQ_lDQCLcB/s400/Screen%2BShot%2B2017-03-03%2Bat%2B12.23.20.png" width="238" height="400"></a></p>
+<p>Over the coming weeks I’m going to explore this validation approach in a series of blog posts:</p>
+<ol>
+<li>Specifying validation rules. 
+<li>Triggering validation. 
+<li>Displaying validation errors.</li></ol>
+<p>In the meantime, the code can be downloaded from <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Validation" target="_blank">GitHub</a>.</p>

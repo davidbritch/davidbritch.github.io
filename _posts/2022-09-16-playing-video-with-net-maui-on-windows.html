@@ -1,0 +1,18 @@
+---
+layout: post
+title: Playing video with .NET MAUI on Windows
+date: '2022-09-16T14:52:00.011+01:00'
+author: David Britch
+tags:
+- ".NET MAUI"
+- C#
+modified_time: '2022-09-16T14:54:47.342+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4629960429963564030
+blogger_orig_url: https://dbritch.blogspot.com/2022/09/playing-video-with-net-maui-on-windows.html
+---
+
+<p><a href="https://www.davidbritch.com/2022/07/playing-video-with-net-maui_28.html">Previously</a> I wrote about playing video with .NET MAUI on Android, iOS, and Mac Catalyst. The problem platform was Windows because WinUI 3 lacked any media playback controls. This has been rectified with the preview release of the WinAppSDK v1.2, which contains the <code>MediaPlayerElement</code> and <code>MediaTransportControls</code> types. If you want to know how to use these types, see <a href="https://docs.microsoft.com/windows/apps/design/controls/media-playback">Media players</a>.</p>
+<p>I’ve updated my <a href="https://github.com/davidbritch/dotnet-maui-videoplayer">VideoPlayer</a> code with Windows support, so it’s now a truly cross-platform <code>Video</code> control. This includes the ability to play remote videos, videos embedded in the app, and video's from the file system. As with the other platforms, the <code>MauiVideoPlayer</code> class provides video playback capabilities on Windows. This class derives from <code>Microsoft.UI.Xaml.Controls.Grid</code> and adds a <code>MediaPlayerElement</code> to it (all WinUI controls must be in a layout, and so this mechanism ensures this will always be the case).</p>
+<p>I also updated the code to remove the <code>IVideo</code> and <code>IVideoHandler</code> interfaces. After chatting to <a href="https://twitter.com/pureween">Shane</a> I realised the interfaces weren’t necessary and weren’t adding anything. While .NET MAUI decouples its handlers from its cross-platform controls via interfaces, this is to enable experimental frameworks such as Comet and Fabulous to provide their own cross-platform controls, that implement the interfaces, while still using .NET MAUI’s handlers. Therefore, creating an interface for your cross-platform control is only necessary if you need to decouple your handler from its cross-platform control for a similar purpose, or for testing purposes.</p>
+<p>My understanding is that v1.2 of the WinAppSDK will move out of preview by the end of the year, so there may be issues with <code>MediaPlayerElement</code> until then.</p>
+

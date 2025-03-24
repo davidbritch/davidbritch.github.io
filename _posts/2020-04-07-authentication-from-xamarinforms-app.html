@@ -1,0 +1,111 @@
+---
+layout: post
+title: Authentication from a Xamarin.Forms app using WebAuthenticator
+date: '2020-04-07T16:04:00.002+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+modified_time: '2020-04-07T16:09:08.909+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-1267623512144814238
+blogger_orig_url: https://dbritch.blogspot.com/2020/04/authentication-from-xamarinforms-app.html
+---
+
+The <a href="https://tools.ietf.org/html/rfc8252">OAuth 2.0 for Native Apps</a> spec represents the best practices for OAuth 2.0 authentication flows from mobile apps. These include:<br />
+<ul><li>Authentication requests should only be made through external user agents, such as the browser. This results in better security, and enables use of the user’s current authentication state, making single sign-on possible. Conversely, this means that authentication requests should never be made through a <strong>WebView</strong>. <strong>WebView</strong> controls are unsafe for third parties, as they leave the authorization grant and user’s credentials vulnerable to recording or malicious use. In addition, <strong>WebView</strong> controls don’t share authentication state, meaning single sign-on isn’t possible.</li>
+<li>Native apps must request user authorization by creating a URI with the appropriate <a href="https://tools.ietf.org/html/rfc6749#section-4.1">grant types</a>. The app then redirects the user to this request URI. A redirect URI that the native app can receive and parse must also be supplied.</li>
+<li>Native apps must use the Proof Key for Code Exchange (PKCE) protocol, to defend against apps on the same device potentially intercepting the authorization code.</li>
+<li>Native apps should use the authorization code grant flow with PKCE. Conversely, native apps shouldn’t use the implicit grant flow.</li>
+<li>Cross-Site Request Forgery (CSRF) attacks should be migitated by using the <strong>state</strong> parameter to link requests and responses.</li>
+</ul>Ultimately, the OAuth 2.0 authentication flow for native apps becomes:<br />
+<ol><li>The native app opens a browser tab with the authorisation request.</li>
+<li>The authorisation endpoint receives the authorisation request, authenticates the user, and obtains authorisation.</li>
+<li>The authorisation server issues an authoration code to the redirect URI.</li>
+<li>The native app receives the authorisation code from the redirect URI.</li>
+<li>The native app presents the authorisation code at the token endpoint.</li>
+<li>The token endpoint validates the authorization code and issues the requested tokens.</li>
+</ol>I’d previously written a Xamarin.Forms <a href="https://github.com/davidbritch/xamarin-forms/tree/master/NativeBrowsers">sample</a>&nbsp;to do this without any additional libraries, and <a href="https://github.com/davidbritch/xamarin-forms/tree/master/NativeBrowsersWithOIDCClient">one</a> with the <a href="https://github.com/IdentityModel/IdentityModel.OidcClient">IdentityModel.OidcClient2</a> library, which is OpenID certified. Both samples consume endpoints on a publically available <a href="https://demo.identityserver.io/">IdentityServer site</a>, and use platform code to invoke native browsers.<br />
+<br />
+<h3>Enter Xamarin.Essentials</h3><br />
+Xamarin.Essentials recently introduced a <strong>WebAuthenticator</strong> class, which is a web navigation API that can be used for authentication with web services. The class contains a single method, <strong>AuthenticateAsync</strong>, which starts an authentication flow by navigating to a specified URI, and then waits for a callback/redirect to the redirect URI scheme. The whole point of the class is that it avoids having to write platform code to invoke native browsers. For more information, see the <a href="https://docs.microsoft.com/xamarin/essentials/web-authenticator?context=xamarin%2Fxamarin-forms&amp;tabs=android">WebAuthenticator doc</a>. <br />
+<br />
+I decided to test drive <strong>WebAuthenticator</strong> by using it to initate an authentication flow with IdentityServer. However, an authentication flow from a mobile app should include a web backend between the mobile app and the authentication provider. This is to avoid including client secrets in your mobile app, which is considered to be insecure. However, I’ve avoided a web backend as middleware here, as I just want to see what’s involved in authenticating with IdentityServer using the <strong>WebAuthenticator</strong> class.<br />
+<br />
+However, before you can use <strong>WebAuthenticator</strong> to authenticate with IdentityServer, you first have to perform some platform specific setup.<br />
+<br />
+<h3>Platform setup</h3><br />
+On Android, you require an <strong>IntentFilter</strong> to handle your redirect URI. This can be accomplished by subclassing the Xamarin.Essentials <strong>WebAuthenticatorCallbackActivity</strong> class:<br />
+<pre><code class="cs">[Activity(NoHistory = true, LaunchMode = LaunchMode.SingleTop)]
+[IntentFilter(new[] { Intent.ActionView},
+    Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable},
+    DataScheme = "io.identitymodel.native",
+    DataHost = "callback")]
+public class WebAuthenticationCallbackActivity : WebAuthenticatorCallbackActivity
+{
+}</code></pre>You’ll also need to overide the <strong>OnResume</strong> method in your <strong>MainActivity</strong> class, to call back into Xamarin.Essentials:<br />
+<pre><code class="cs">protected override void OnResume()
+{
+    base.OnResume();
+    Xamarin.Essentials.Platform.OnResume();
+}</code></pre>On iOS, you’ll need to add your app’s redirect URI to your Info.plist file:<br />
+<pre><code class="xml"> &lt;key&gt;CFBundleURLTypes&lt;/key&gt;
+ &lt;array&gt;
+  &lt;dict&gt;
+   &lt;key&gt;CFBundleURLName&lt;/key&gt;
+   &lt;string&gt;WebAuthenticatorDemo&lt;/string&gt;
+   &lt;key&gt;CFBundleTypeRole&lt;/key&gt;
+   &lt;string&gt;None&lt;/string&gt;
+   &lt;key&gt;CFBundleURLSchemes&lt;/key&gt;
+   &lt;array&gt;
+    &lt;string&gt;io.identitymodel.native&lt;/string&gt;
+   &lt;/array&gt;
+  &lt;/dict&gt;
+ &lt;/array&gt;</code></pre>You’ll also need to overide the <strong>OpenUrl</strong> method in your <strong>AppDelegate</strong> class, to call back into Xamarin.Essentials:<br />
+<pre><code class="cs">public override bool OpenUrl(UIApplication app, NSUrl url, NSDictionary options)
+{
+    if (Xamarin.Essentials.Platform.OpenUrl(app, url, options))
+        return true;
+
+    return base.OpenUrl(app, url, options);
+}</code></pre>On UWP, you need to declare your redirect URI in your Package.appxmanifest file:<br />
+<pre><code class="xml">    &lt;Applications&gt;
+      &lt;Application Id=&quot;App&quot;
+        Executable=&quot;$targetnametoken$.exe&quot;
+        EntryPoint=&quot;WebAuthenticatorDemo.UWP.App&quot;&gt;
+        ...
+
+        &lt;Extensions&gt;
+          &lt;uap:Extension Category=&quot;windows.protocol&quot;&gt;
+            &lt;uap:Protocol Name=&quot;io.identitymodel.native&quot;&gt;
+              &lt;uap:DisplayName&gt;WebAuthenticatorDemo&lt;/uap:DisplayName&gt;
+            &lt;/uap:Protocol&gt;
+          &lt;/uap:Extension&gt;
+        &lt;/Extensions&gt;
+      
+      &lt;/Application&gt;
+    &lt;/Applications&gt;</code></pre><h3>Start an authentication flow with WebAuthenticator</h3><br />
+An authentication flow with IdentityServer can be started by creating the start URI, and passing it to the <strong>AuthenticateAsync</strong> method along with the redirect URI:<br />
+<pre><code class="cs">string url = identityService.CreateAuthorizationRequest();
+var authResult = await WebAuthenticator.AuthenticateAsync(new Uri(url), new Uri(Constants.RedirectUri));
+</code></pre>If you aren’t familiar with the process of building an authorization request to IdentityServer, I recommend you look at the <strong>IdentityService</strong> class in the <a href="https://github.com/davidbritch/xamarin-forms/tree/master/WebAuthenticatorDemo">sample</a>. It involves creating a long query string that contains data that indicates to IdentityServer what kind of authentication flow to kick off.<br />
+<br />
+The <strong>AuthenticateAsync</strong> method returns a <strong>WebAuthenticatorResult</strong> object, which contains a number of properties, such as <strong>AccessToken</strong>, and <strong>RefreshToken</strong>. More importantly, it has a <strong>Properties</strong> dictionary that contains all of the query string or URI fragment properties, that can then be accessed by their key. Therefore, the <strong>Properties</strong> dictionary can be parsed to build the raw response sent by IdentityServer:<br />
+<pre><code class="cs">string raw = ParseAuthenticatorResult(authResult);
+authorizeResponse = new AuthorizeResponse(raw);
+
+string ParseAuthenticatorResult(WebAuthenticatorResult result)
+{
+    string code = result?.Properties["code"];
+    string idToken = result?.IdToken;
+    string scope = result?.Properties["scope"];
+    string state = result?.Properties["state"];
+    string sessionState = result?.Properties["session_state"];
+    return $"{Constants.RedirectUri}#code={code}&amp;id_token={idToken}&amp;scope={scope}&amp;state={state}&amp;session_state={sessionState}";
+}</pre></code>The result of a successful authentication flow is that the <strong>AuthorizeResponse</strong> object contains an authorization code, that can then be exchanged for the requested tokens:<br />
+<pre><code class="cs">UserToken userToken = await identityService.GetTokenAsync(authorizeResponse.Code);</pre></code>If the <strong>UserToken</strong> object contains an access token, it can be used when making API calls to IdentityServer:<br />
+<pre><code class="cs">var content = await identityService.GetAsync($"{Constants.ApiUri}test", userToken.AccessToken);</pre></code><h3>Wrapping up</h3><br />
+Although there's a lot going on here, in terms of generating the start URI, and processing the response from the redirect URI, using the <strong>WebAuthenticator</strong> class has avoided having to write platform code to invoke native browsers. This can be a considerable amount of work, depending on the platform, and it can also be confusing if you aren't familiar with the intricacies of each platform. <br />
+<br />
+I've deliberately left out a lot of code from this blog post, which generates the queries to send to IdentityServer. This is because my aim wasn't to cover the intricacies of IdentityServer, but instead how to initiate an authentication flow with <strong>WebAuthenticator</strong>, and how to process its response. I also said that all of this is simple, but it’s only simple if you have a good understanding of the OAuth 2.0 spec. If you don’t, it can be overwhelming. Therefore, in my next blog post I’ll look at simplifying all of this by using the <a href="https://github.com/IdentityModel/IdentityModel.OidcClient">IdentityModel.OidcClient</a> library.<br />
+<br />
+The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/WebAuthenticatorDemo">GitHub</a>.

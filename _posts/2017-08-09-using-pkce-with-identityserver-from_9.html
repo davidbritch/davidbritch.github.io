@@ -1,0 +1,154 @@
+---
+layout: post
+title: Using PKCE with IdentityServer from a Xamarin Client
+date: '2017-08-09T17:24:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- IdentityServer
+- Xamarin
+modified_time: '2017-08-09T17:25:51.469+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7822348296368135049
+blogger_orig_url: https://dbritch.blogspot.com/2017/08/using-pkce-with-identityserver-from_9.html
+---
+
+<p>The OpenID Connect and OAuth 2.0 specifications define a number of authentication flows between clients and authentication providers. These include:</p>
+<ul>
+<li><strong>Implicit</strong>.This authentication flow is optimized for browser-based apps. All tokens are transmitted via the browser. 
+<li><strong>Authorization code</strong>. This authentication flow provides the ability to retrieve tokens on a back channel, as opposed to the browser front channel, while also supporting client authentication. 
+<li><strong>Hybrid</strong>. This authentication flow is a combination of the implicit and authorization code flows. The identity token is transmitted via the browser channel and contains the signed protocol response along with other artifacts such as the authorization code. After successful validation of the response, the back channel is used to retrieve the access and refresh tokens.</li></ul>
+<p>The <a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank">eShopOnContainers</a> mobile app communicates with an identity microservice, which uses IdentityServer 4 to perform authentication, and access control for APIs. The app uses the hybrid authentication flow to retrieve access tokens, as this flow mitigates a number of attacks that apply to the browser channel, and this approach is explained in the <a href="https://developer.xamarin.com/guides/xamarin-forms/enterprise-application-patterns/" target="_blank">guidance documentation</a>.</p>
+<p>However, OAuth 2.0 clients that utilize authorization codes are susceptible to an authorization code interception attack. In this attack, the authorization code returned from an authorization endpoint is intercepted within a communication path not protected by Transport Layer Security (TLS), such as inter-application communication within the client’s operating system. Once the attacker has gained access to the authorization code, it can be used to obtain the access token. While a number of pre-conditions must hold for the authorization code interception attack to work, it has been observed in the wild. </p>
+<p>To mitigate this attack, the Proof Key for Code Exchange (PKCE) extension to OAuth 2.0 adds additional parameters to the OAuth 2.0 authorization and access token requests:</p>
+<ol>
+<li>The client creates a cryptographically random key called a <em>code verifier,</em> and derives a transformed value, called a <em>code challenge</em>, which is sent in the OAuth 2.0 authorization request along with the transformation method. 
+<li>The authorization endpoint responds as usual but records the <em>code challenge</em> and transformation method. 
+<li>The clients sends the authorization code in the access token request, and also includes the <em>code verifier</em>. 
+<li>The authorization server transforms the <em>code verifier</em> and compares it to the <em>code challenge</em>. Access is denied if they are not equal.</li></ol>
+<p>This works as a mitigation for native apps because if an attacker intercepts the authorization code in step (2), it can’t redeem it for an access token as the attacker is not in possession of the <em>code verifier</em>. In addition, the <em>code verifier</em> can’t be intercepted since it’s sent over TLS.</p>
+<p>For detailed information about PKCE, see <a href="https://tools.ietf.org/html/rfc7636" target="_blank">Proof Key for Code Exchange by OAuth Public Clients</a>.</p>
+<h3>Implementing PKCE</h3>
+<p>Following the guidance in the <a href="https://tools.ietf.org/html/draft-ietf-oauth-native-apps-03" target="_blank">OAuth 2.0 for Native Apps</a> specification, that PKCE should be used in authorization code based authentication flows, I’ve recently updated the <a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank">eShopOnContainers</a> mobile app to use PKCE when communicating with IdentityServer.</p>
+<p><strong>Server Side</strong></p>
+<p>IdentityServer must be configured to require the use of PKCE. This is achieved by modifying the configuration of the IdentityServer <strong>Client</strong> object for the Xamarin client:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:d9df628e-f055-413d-b8bd-edf4ebfc225b" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 594px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> IEnumerable</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Client</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetClients(Dictionary</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">,</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> clientsUrl)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> List</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Client</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        ...
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Client
+        {
+            ClientId </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">xamarin</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">,
+            ClientName </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">eShop Xamarin OpenId Client</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">,
+            AllowedGrantTypes </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> GrantTypes.Hybrid,
+            ClientSecrets </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);">
+            {
+                </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Secret(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">secret</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">.Sha256())
+            },
+            RedirectUris </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> { clientsUrl[</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Xamarin</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">] },
+            RequireConsent </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">false</span><span style="color: rgb(0, 0, 0);">,
+            RequirePkce </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">true</span><span style="color: rgb(0, 0, 0);">,
+            PostLogoutRedirectUris </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> { $</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">{clientsUrl[</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">Xamarin</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">]}/Account/Redirecting</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);"> },
+            AllowedCorsOrigins </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> { </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">http://eshopxamarin</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);"> },
+            AllowedScopes </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> List</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            {
+                IdentityServerConstants.StandardScopes.OpenId,
+                IdentityServerConstants.StandardScopes.Profile,
+                IdentityServerConstants.StandardScopes.OfflineAccess,
+                </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">orders</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">,
+                </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">basket</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">
+            },
+            AllowOfflineAccess </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">true</span><span style="color: rgb(0, 0, 0);">,
+            AllowAccessTokensViaBrowser </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">true</span><span style="color: rgb(0, 0, 0);">
+        },
+        ...
+    };
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This configuration adds the <strong>RequirePkce</strong> property to the <strong>Client</strong> object. The <strong>RequirePkce</strong> property specifies whether clients using an authorization code must send a proof key.</p>
+<p><strong>Client Side</strong></p>
+<p>The <strong>CreateAuthorizationRequest</strong> method in the <strong>IdentityService</strong> class creates the URI for IdentityServer’s authorization endpoint, and the URI must be modified to include additional query parameters. The following code example shows the modified method:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:cb215162-bf8b-4ea9-9fc0-7904294523b8" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 422px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> CreateAuthorizationRequest()
+{
+    </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Create URI to authorization endpoint</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    var authorizeRequest </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> AuthorizeRequest(GlobalSetting.Instance.IdentityEndpoint);
+
+    </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Dictionary with values for the authorize request</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    var dic </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Dictionary</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">();
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">client_id</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, GlobalSetting.Instance.ClientId);
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">client_secret</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, GlobalSetting.Instance.ClientSecret); 
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">response_type</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">code id_token</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">scope</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">openid profile basket orders locations marketing offline_access</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">redirect_uri</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, GlobalSetting.Instance.IdentityCallback);
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">nonce</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, Guid.NewGuid().ToString(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">N</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">));
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">code_challenge</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, CreateCodeChallenge());
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">code_challenge_method</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, </span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">S256</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+
+    </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Add CSRF token to protect against cross-site request forgery attacks.</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">    var currentCSRFToken </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Guid.NewGuid().ToString(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">N</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+    dic.Add(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">state</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, currentCSRFToken);
+
+    var authorizeUri </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> authorizeRequest.Create(dic); 
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> authorizeUri;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The client first creates a code verifier for the authorization request, with the <strong>CreateCodeChallenge</strong> method:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:c7f93c98-81a0-40df-8ac9-21ca2725aedf" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 195px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">private</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> CreateCodeChallenge()
+{
+    _codeVerifier </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> RandomNumberGenerator.CreateUniqueId();
+    var sha256 </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> HashAlgorithmProvider.OpenAlgorithm(HashAlgorithm.Sha256);
+    var challengeBuffer </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> sha256.HashData(
+        CryptographicBuffer.CreateFromByteArray(Encoding.UTF8.GetBytes(_codeVerifier)));
+    </span><span style="color: rgb(0, 0, 255);">byte</span><span style="color: rgb(0, 0, 0);">[] challengeBytes;
+    CryptographicBuffer.CopyToByteArray(challengeBuffer, </span><span style="color: rgb(0, 0, 255);">out</span><span style="color: rgb(0, 0, 0);"> challengeBytes);
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> Base64Url.Encode(challengeBytes);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>CreateUniqueId</strong> method in the <strong>RandomNumberGenerator</strong> class creates a high-entropy cryptographic random string using the <a href="https://www.nuget.org/packages/pclcrypto" target="_blank">PCLCrypto</a> library. Note that the <a href="https://tools.ietf.org/html/rfc7636">PKCE specification</a> requires that the code verifier is base64 URL-encoded to produce a URL safe string. However, the code verifier here is already URL safe, and so this additional operation isn’t required.</p>
+<p>The <strong>CreateCodeChallenge</strong> method then creates a code challenge derived from the code verifier. This can be achieved by using one of the following transformations:</p>
+<ul>
+<li>code challenge = code verifier (known as the <em>plain</em> transformation)</li></ul>
+<blockquote>
+<p>OR</p></blockquote>
+<ul>
+<li>code challenge = base64urlencode(Sha256(code_verifier)) (known as the <em>S256</em> transformation)</li></ul>
+<p>If the client is capable of using the S256 transformation, it must do so, as this transformation is mandatory to implement on compliant servers. The <strong>CreateAuthorizationReques</strong>t method uses the S256 transformation, which SHA256 encodes the code verifier, and then base64 url-encodes the SHA256 output.</p>
+<p>The client then sends the code challenge as part of the OAuth 2.0 authorization request, using the following additional parameters:</p>
+<ul>
+<li><strong>code_challenge</strong> – the derived code challenge 
+<li><strong>code_challenge_method</strong> – S256 (or plain)</li></ul>
+<p>When IdentityServer issues the authorization code in the authorization response, it associates the code challenge and code challenge method values with the authorization code so that it can be verified later. Note that if IdentityServer is configured to use PKCE, and the client does not send the code challenge, the authorization endpoint responds with an error response set to invalid_request.</p>
+<p>Upon receipt of the authorization code, the client sends the access token request to the token endpoint. In addition to the existing parameters, it also sends the following parameter:</p>
+<ul>
+<li><strong>code_verifier</strong> – the code verifier</li></ul>
+<p>In the eShopOnContainers app, this is achieved with the <strong>GetTokenAsync</strong> method in the <strong>IdentityService</strong> class:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:966b022c-131f-468d-8e24-c33ced628a7e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 153px; overflow: hidden; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">UserToken</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetTokenAsync(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> code)
+{
+    var data </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Format(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">grant_type=authorization_code&amp;code={0}&amp;redirect_uri={1}&amp;code_verifier={2}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, 
+        code, WebUtility.UrlEncode(GlobalSetting.Instance.IdentityCallback), _codeVerifier);
+    var token </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await _requestProvider.PostAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">UserToken</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(GlobalSetting.Instance.TokenEndpoint, 
+        data, GlobalSetting.Instance.ClientId, GlobalSetting.Instance.ClientSecret);
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> token;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Upon receipt of the request at the token endpoint, IdentityServer verifies it by calculating the code challenge from the received code verifier, and comparing it with the previously associated code challenge, after first transforming it according to the code challenge method specified by the client. If the values are not equal, an error response indicating invalid_grant is returned. If the values are equal, the token endpoint continues processing as normal and responds with an access token, identity token, and refresh token.</p>
+<h3>Summary</h3>
+<p>OAuth 2.0 clients that utilize authorization codes are susceptible to an authorization code interception attack. To mitigate this attack, the PKCE extension to OAuth 2.0 adds additional parameters to the OAuth 2.0 authorization and access token requests.</p>
+<p>Following the guidance in the <a href="https://tools.ietf.org/html/draft-ietf-oauth-native-apps-03" target="_blank">OAuth 2.0 for Native Apps</a> specification, that PKCE should be used in authorization code based authentication flows, I’ve recently updated the <a href="https://github.com/dotnet-architecture/eShopOnContainers" target="_blank">eShopOnContainers</a> mobile app to use PKCE when communicating with IdentityServer.</p>
+<p>For detailed information about PKCE, see <a href="https://tools.ietf.org/html/rfc7636" target="_blank">Proof Key for Code Exchange by OAuth Public Clients</a>.</p>

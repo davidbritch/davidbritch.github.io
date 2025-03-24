@@ -1,0 +1,16 @@
+---
+layout: post
+title: Tips for building Windows Store apps using XAML and C++
+date: '2012-11-05T11:37:00.001Z'
+author: David Britch
+tags:
+- C++/CX
+- Windows 8
+- WinRT
+- Windows Store app
+modified_time: '2012-11-05T11:38:30.885Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5431086244362066045
+blogger_orig_url: https://dbritch.blogspot.com/2012/11/tips-for-building-windows-store-apps.html
+---
+
+<p>The <a href="http://www.buildwindows.com">//build/</a> conference was last week and one of the many sessions was about tips for building a Windows Store app using XAML and C++. Specifically, this session was about the tips that we learnt while developing the <a href="http://code.msdn.microsoft.com/windowsapps/Hilo-C-sample-b53fd433">Hilo</a> app.</p><iframe style="width: 960px; height: 540px" src="http://channel9.msdn.com/Events/Build/2012/3-001/player?w=960&amp;h=540" frameborder="0" scrolling="no"></iframe> <p>The main things we learnt, which are discussed in the video, are:</p> <ol> <li>Use smart pointers, stack semantics &amp; RAII pattern.  <li>Use public ref classes only for interop.  <li>Don’t create circular references between ref classes and lambda expressions.  <li>Use explicit capture for lambda expressions.  <li>Use task cancellation consistently.  <li>Be aware of context rules for continuations of tasks.  <li>Use the LayoutAwarePage class to provide navigation, state management, and view management.  <li>Support visual state for landscape, portrait, fill and snap.  <li>Use asynchronous programming techniques to keep the UI responsive.  <li>Use the BindableBase class to provide support for MVVM.  <li>Use MVVM to build an interop layer between XAML and your models.  <li>Separate resources for each locale.  <li>Use the Calendar class to support world calendars.  <li>Save application data when the app is being suspended.  <li>When the app resumes after termination, use the saved app data to restore the app state.  <li>Release exclusive resources when the app is being suspended.  <li>Ensure your controls for tap and hold appears above the touch point.  <li>Use the standard touch gestures and controls that Windows 8 provides.  <li>Use the Windows Runtime to create image thumbnails for tiles.  <li>Ensure queries prefetch properties to improve performance.  <li>Keep the launch times of your app fast.</li></ol> <p>For more information about these tips, see the Hilo <a href="http://msdn.microsoft.com/en-us/library/windows/apps/jj160316.aspx">guidance</a>.</p>  

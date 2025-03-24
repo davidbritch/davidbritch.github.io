@@ -1,0 +1,71 @@
+---
+layout: post
+title: Invoke platform code in .NET MAUI
+date: '2021-11-12T14:45:00.013Z'
+author: David Britch
+tags:
+- ".NET MAUI"
+modified_time: '2021-11-12T15:10:21.094Z'
+thumbnail: https://1.bp.blogspot.com/-D8axGwIYUCA/YY5-X9NC-kI/AAAAAAAADjw/TXR28sr5FOoHSDLI8JyoUTFaoKE85DKsQCNcBGAsYHQ/s72-w200-c-h141/platforms.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4633270539327306681
+blogger_orig_url: https://dbritch.blogspot.com/2021/11/invoke-platform-code-in-net-maui.html
+---
+
+<p>Xamarin.Forms has the <code>DependencyService</code> class, which is a service locator that enables apps to invoke native platform functionality from cross-platform code. There’s a four step process for using the <code>DependencyService</code> to invoke native platform functionality:</p>
+<ol>
+<li>Create an interface for the native platform functionality, in cross-platform code.</li>
+<li>Implement the interface in the required platform projects.</li>
+<li>Register the platform implementations with the <code>DependencyService</code>.</li>
+<li>Resolve the platform implementations from cross-platform code, and invoke them.</li>
+</ol>
+<p>For more information about the process, see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/app-fundamentals/dependency-service/introduction">Xamarin.Forms DependencyService</a>.</p>
+<p>While <code>DependencyService</code> works well, it’s not an ideal approach to invoking native code from cross-platform code in 2021 - .NET MAUI can do better! <code>DependencyService</code> is still present in .NET MAUI, via the compatibility layer, for ease of migration of Xamarin.Forms apps to .NET MAUI. However, there’s a better way that combines partial methods and classes with the power of multi-targeting.</p>
+<p>In order to demonstrate this approach, I’ve created a simple sample that just returns a string that represents the platform the app is running on. This isn’t the ideal way of determining the platform the app is running on - it’s just demonstrating how to call into platform code in .NET MAUI without resorting to using <code>DependencyService</code>.</p>
+<p>As always, the sample this code comes from can be found on <a href="https://github.com/davidbritch/dotnet-maui-samples/tree/main/CallPlatformCode/MyMauiApp">GitHub</a>.</p>
+<h2 id="background">Background</h2>
+<p>In a .NET MAUI app, the app project contains a <strong>Platforms</strong> folder:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-D8axGwIYUCA/YY5-X9NC-kI/AAAAAAAADjw/TXR28sr5FOoHSDLI8JyoUTFaoKE85DKsQCNcBGAsYHQ/s333/platforms.PNG" style="display: block; padding: 1em 0px; text-align: center;"><img alt="" border="0" data-original-height="234" data-original-width="333" height="141" src="https://1.bp.blogspot.com/-D8axGwIYUCA/YY5-X9NC-kI/AAAAAAAADjw/TXR28sr5FOoHSDLI8JyoUTFaoKE85DKsQCNcBGAsYHQ/w200-h141/platforms.PNG" width="200" /></a></div>
+<p>Each child folder of the <strong>Platforms</strong> folder represents a platform that .NET MAUI can target, and each child folder contains platform-specific code. At build time, the compiler only includes the code from each folder when building for that specific platform. For example, when you build for Android, the files in the <strong>Platforms</strong> &gt; <strong>Android</strong> folder will be built into the app package, but the files in the other <strong>Platform</strong> folders won’t be. This approach, known as <a href="https://docs.microsoft.com/dotnet/standard/library-guidance/cross-platform-targeting#multi-targeting">multi-targeting</a> can be combined with partial methods and classes to invoke native platform functionality from cross-platform code.</p>
+<h2 id="implementation">Implementation</h2>
+<p>In your cross-platform code, define a partial method in a partial class that represents the the operation you want to invoke on each platform. In this example, I’ve created a <code>GetPlatform</code> method in a <code>MyService</code> class:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">namespace</span> MyMauiApp
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">MyService</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">string</span> <span class="token function">GetPlatform</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>Then, in each <strong>Platform</strong> folder in the project, define the same partial class (in the same namespace) and the same partial method, but also provide the method implementation. This means you’ll have a <code>MyService</code> class in each of the four child folders of the <strong>Platforms</strong> folder in the solution:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-dv27ZWpWiT8/YY5-gfFSTwI/AAAAAAAADj0/oPzFbwhLcAgPeukKTyb0wN1-f5YUoUz5ACNcBGAsYHQ/s1109/platforms2.png" style="display: block; padding: 1em 0px; text-align: center;"><img border="0" data-original-height="1109" data-original-width="569" height="640" src="https://1.bp.blogspot.com/-dv27ZWpWiT8/YY5-gfFSTwI/AAAAAAAADj0/oPzFbwhLcAgPeukKTyb0wN1-f5YUoUz5ACNcBGAsYHQ/w328-h640/platforms2.png" width="328" /></a></div>
+<p>Therefore, the <code>MyService</code> class in the <strong>Platforms</strong> &gt; <strong>Android</strong> folder will be:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">namespace</span> MyMauiApp
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">MyService</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">string</span> <span class="token function">GetPlatform</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token string">"Android"</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>Similarly, the <code>MyService</code> class in the <strong>Platforms</strong> &gt; <strong>Windows</strong> folder will be:</p>
+<pre class="language-csharp"><code class="prism language-csharp"><span class="token keyword">namespace</span> MyMauiApp
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">MyService</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">string</span> <span class="token function">GetPlatform</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token string">"Windows"</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>Then, in your cross-platform code, create a <code>MyService</code> object and call its <code>GetPlatform</code> method to return the <code>string</code> that represents the platform the code is running on:</p>
+<pre class="language-csharp"><code class="prism language-csharp">MyService service <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">MyService</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+label<span class="token punctuation">.</span>Text <span class="token operator">=</span> service<span class="token punctuation">.</span><span class="token function">GetPlatform</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>At build time, the compiler will (via the magic of multi-targeting) combine the cross-platform <code>MyService</code> class with the <code>MyService</code> class for the target platform and build it into the app package. No more <code>DependencyService</code> required!</p>
+<p>It’s worth noting that while this approach requires you to provide implementations for all four platforms (Android, iOS, macOS, and Windows), you can also use conditional compilation to limit this to specific platforms if required (e.g. Android and iOS only).</p>
+<p>It’s also possible to perform multi-targeting based on filenames, rather than using the <strong>Platforms</strong> folders. With this approach, the platform is included in the filename (e.g. MyService.Android.cs, MyService.Windows.cs etc.). This enables you to structure your project so that you don’t have to place all your platform code into the different <strong>Platforms</strong> folders. Maybe that’s a post for another time.</p>

@@ -1,0 +1,61 @@
+---
+layout: post
+title: Playing local audio files with .NET MAUI
+date: '2022-09-28T16:11:00.004+01:00'
+author: David Britch
+tags:
+- ".NET MAUI"
+- C#
+modified_time: '2022-09-28T16:12:54.793+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7260286985720968022
+blogger_orig_url: https://dbritch.blogspot.com/2022/09/playing-local-audio-files-with-net-maui.html
+---
+
+<p><a href="https://www.davidbritch.com/2022/09/playing-audio-with-net-maui.html">Previously</a> I wrote about playing audio with .NET MAUI on Android, iOS, Mac Catalyst, and Windows. The main problem with my implementation was that the <code>FilePicker</code> for picking local audio files only worked on Windows. On iOS/Android it let you browse the device, and displayed audio files, but it didn’t let you select an audio file. On Mac Catalyst it did nothing at all. I was convinced these were MAUI bugs. Turns out I was completely wrong!</p>
+<p>The problem was this block of code:</p>
+<pre><code>var pickedAudio = await FilePicker.Default.PickAsync(new PickOptions
+{
+	PickerTitle = "Select audio file",
+	FileTypes = new FilePickerFileType(
+		new Dictionary&lt;DevicePlatform, IEnumerable&lt;string&gt;&gt;
+		{
+			{ DevicePlatform.WinUI, new [] { "*.mp3", "*.m4a" } },
+			{ DevicePlatform.Android, new [] { "*.mp3", ".3gp", ".mp4", ".m4a", ".aac", ".ts", ".amr", ".flac", ".mid", ".xmf", ".mxmf", ".rtttl", ".rtx", ".ota", ".imy", ".mkv", ".ogg", ".wav" } },
+			{ DevicePlatform.iOS, new[] { "*.mp3", "*.aac", "*.aifc", "*.au", "*.aiff", "*.mp2", "*.3gp", "*.ac3" } }
+		})
+});
+</code></pre>
+<p>The problem was ultimately caused by the order in which I wrote and tested the code on each platform. I did Windows first, followed by Android and iOS. Also, note the lack of an entry for Mac Catalyst.</p>
+<p>So, I started off by adding code for Windows and specified <code>*.mp3</code> and <code>*.m4a</code> as the file extensions to display in the <code>FilePicker</code>. This was purely because I couldn’t find any docs on which audio file formats are supported in WinUI 3. I got the <code>MauiAudioPlayer</code> working on Windows using these file extensions and moved onto Android.</p>
+<p>I assumed that I could just use the same file extensions on Android and iOS. I managed to find docs from Google and Apple that mentioned the audio file formats they supported, and what their file extensions are, hence the more extensive entries for each platform. The issue was that I didn’t know that file picking on Android and iOS, using <code>FilePicker</code> and <code>FilePickerFileType</code>, doesn’t require an array of file extensions.</p>
+<p>It was <a href="https://jfversluis.dev">Gerald</a> who alerted me to this, by pointing to the Xamarin.Essentials <code>PickOptions.FileTypes</code> <a href="https://learn.microsoft.com/en-gb/dotnet/api/xamarin.essentials.pickoptions.filetypes?view=xamarin-essentials">API docs</a>. Sure, it’s for Xamarin.Essentials rather than .NET MAUI but the same content applies. Specifically:</p>
+<blockquote>
+<p>On Android and iOS the files not matching this list is only displayed<br>
+grayed out. When the array is null or empty, all file types can be<br>
+selected while picking. The contents of this array is platform<br>
+specific; every platform has its own way to specify the file types. On<br>
+Android you can specify one or more MIME types, e.g. “image/png”; also<br>
+wild card characters can be used, e.g. “image/*”. On iOS you can<br>
+specify UTType constants, e.g. UTType.Image. On UWP, specify a list of<br>
+extensions, like this: “.jpg”, “.png”.</p>
+</blockquote>
+<p>So there’s the answer: on Android you specify the file types as MIME types, and wild cards can be used. On iOS you specify <code>UTType</code> constants, and on Windows you use file extensions.</p>
+<p>I looked at <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types">common MIME types</a> and discovered that for audio the MIME types are entries like <code>audio/aac</code>, <code>audio/mpeg</code> etc. When combined with wildcards it meant that the MIME type for all audio files supported by a platform is <code>audio/*</code>. So this became the <code>string</code> entry in the <code>FilePickerFileType</code> dictionary for Android.</p>
+<p>iOS was a thornier problem. <code>UTType</code> constants are the recommended approach and are documented <a href="https://developer.apple.com/documentation/uniformtypeidentifiers/uttype">here</a>. The problem I have with this approach is it requires iOS14+. I wanted my code to work with all versions of iOS that MAUI supports (which the <a href="https://learn.microsoft.com/dotnet/maui/supported-platforms">docs</a> says is iOS10+). On a random StackOverflow post I read that you could use system-defined uniform type identifiers to specify which files can be selected, which lead me to Apple’s <a href="https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html">System-declared Uniform Type Identifiers</a> doc. A quick search of the doc revealed that the correct constant for audio files is <code>public.audio</code>. So this became the <code>string</code> entry in the <code>FilePickerFileType</code> dictionary for iOS, that I also duplicated for Mac Catalyst.</p>
+<p>This lead to the following code:</p>
+<pre><code>var pickedAudio = await FilePicker.Default.PickAsync(new PickOptions
+{
+	PickerTitle = "Select audio file",
+	FileTypes = new FilePickerFileType(
+		new Dictionary&lt;DevicePlatform, IEnumerable&lt;string&gt;&gt;
+		{
+			{ DevicePlatform.WinUI, new [] { "*.mp3", "*.m4a" } },
+			{ DevicePlatform.Android, new [] { "audio/*" } },
+			{ DevicePlatform.iOS, new[] { "public.audio" } },
+			{ DevicePlatform.MacCatalyst, new[] { "public.audio" } }
+		})
+});
+</code></pre>
+<p>When combined with a couple of small updates to <code>MauiAudioPlayer</code> on iOS/Android/Mac Catalyst, to correctly load the selected file, all platforms gained the ability to play locally stored audio files. The PR of changes to enable this can be found <a href="https://github.com/davidbritch/dotnet-maui-audioplayer/pull/2/files">here</a>.</p>
+<p>So there we have - a .NET MAUI audio player for iOS, Android, Mac Catalyst, and Windows, that plays audio from URLs, audio embedded in your app package, and local audio files on your device that can be chosen by the user. You can find the code <a href="https://github.com/davidbritch/dotnet-maui-audioplayer">here</a>.</p>
+

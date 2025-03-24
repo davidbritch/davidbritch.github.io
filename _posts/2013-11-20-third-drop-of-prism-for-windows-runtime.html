@@ -1,0 +1,16 @@
+---
+layout: post
+title: Third drop of Prism for the Windows Runtime for Windows 8.1
+date: '2013-11-20T09:09:00.000Z'
+author: David Britch
+tags:
+- Prism for the Windows Runtime
+- Windows 8
+- WinRT
+- Windows Store app
+modified_time: '2013-11-20T09:10:24.781Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-959006140660593448
+blogger_orig_url: https://dbritch.blogspot.com/2013/11/third-drop-of-prism-for-windows-runtime.html
+---
+
+<p>The third drop of Prism for the Windows Runtime, and the associated AdventureWorks Shopper reference implementation, can be found on <a href="https://prismwindowsruntime.codeplex.com/releases/view/115137">codeplex</a>. To compile the code you’ll need Windows 8.1 and Visual Studio 2013. Obviously the usual caveats apply to the download, as it’s not final released code yet.</p> <h3>Change Log</h3> <ul> <li>Numerous bug fixes.</li> <li>The Quickstarts have been retargeted to Windows 8.1 and any attached behaviours have been replaced with Blend behaviours.</li> <li>Prism’s <strong>SearchPaneService</strong> and <strong>SearchQueryArguments</strong> classes have been deprecated.</li> <li>Search activation support has been removed from the RI and the <strong>MvvmAppBase</strong> class.</li> <li>Search is provided in the RI with the <strong>SearchBox</strong> control.</li> <li>Search suggestions are provided from the web service on demand.</li> <li>The <strong>HighlightSearchBehavior</strong> has been converted to an <strong>IAction</strong> named <strong>HighlightSearchAction</strong>.</li> <li>Prism includes support for extended splash screens (see the ExtendedSplashScreenQuickstart sample).</li> <li><strong>AutoRotatingGridView</strong> controls are now retaining proportional scroll position across landscape/portrait orientation as well during the terminate/resume process.</li></ul>  

@@ -1,0 +1,136 @@
+---
+layout: post
+title: 'Xamarin.Forms Behaviors: Revising InvokeMethodAction'
+date: '2016-12-22T11:39:00.000Z'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2016-12-22T11:43:03.775Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4510561832739050619
+blogger_orig_url: https://dbritch.blogspot.com/2016/12/xamarinforms-behaviors-revising.html
+---
+
+<p>Earlier in the year I blogged about using the <strong>EventHandlerBehavior</strong>, <strong>DataChangedBehavior</strong>, and <strong>InvokeMethodAction</strong> classes to invoke one or more methods when an event fires, or when data changes. The <a href="http://www.davidbritch.com/2016/02/behaviours-library-for-xamarinforms_24.html">Behaviors Library for Xamarin.Forms</a> has the notion of behaviors and actions. A behavior is attached to a control and listens for something to happen, such as an event firing. When the “something” happens, it triggers one or more actions, such as invoking a method or command. Actions are invoked by behaviors and executed on a selected control.</p> <p>A number of people have contacted me over the year about difficulties in getting the <strong>InvokeMethodAction</strong> class to invoke their methods. In all cases it was possible to invoke their methods – it just required more of an understanding about using the class. Therefore, in this blog post I’ll explore the <strong>InvokeMethodAction</strong> class in more depth.</p> <h3>Invoking a Method when an Event Fires</h3> <p>The <strong>EventHandlerBehavior</strong> class listens for a specified event to occur, and executes one or more actions in response. It requires you to set an <strong>EventName</strong> property to the event that you want the behavior to listen to, and an <strong>Actions</strong> property to one or more actions that should be executed in response to the event firing.</p> <p>The <strong>InvokeMethodAction</strong> class executes a specified method when invoked. It requires you to set a <strong>TargetObject</strong> property to an object that exposes the method of interest, and a <strong>MethodName</strong> property to the name of the method to be invoked. The <strong>InvokeMethodAction</strong> class allows the following methods to be called:</p> <ul> <li>A <strong>public</strong> method with zero parameters.  <li>A <strong>public</strong> event handler method with two parameters.</li></ul> <p>Each scenario will now be explored.</p> <h2>Calling a Public Method without Parameters</h2> <p>The first scenario the <strong>InvokeMethodAction</strong> class targets is calling a <strong>public</strong> method with zero parameters, as demonstrated in the following code example:</p> <div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:98068c92-017b-493e-9e1b-34f39e83368c" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 204px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">StackLayout.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">local:InvokeMethodDemoPageViewModel </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">StackLayout.BindingContext</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+...
+</span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button </span><span style="color: #ff0000">Text</span><span style="color: #0000ff">="Invoke ViewModel Method"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="Clicked"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeMethodAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> MethodName</span><span style="color: #0000ff">="IncrementCounter"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>IncrementCounter</strong> method is <strong>public</strong> and doesn’t take any parameters:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:3678a4aa-8ee8-46fa-bf6e-80e3b8de7e35" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 97px; width: 826px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">public</span><span style="color: #000000"> </span><span style="color: #0000ff">void</span><span style="color: #000000"> IncrementCounter ()
+{
+    Counter</span><span style="color: #000000">++</span><span style="color: #000000">;
+    OnPropertyChanged (</span><span style="color: #800000">"</span><span style="color: #800000">Counter</span><span style="color: #800000">"</span><span style="color: #000000">);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>When the <strong>Button.Clicked</strong> event fires, the <strong>IncrementCounter</strong> method is executed. The <strong>TargetObject</strong> property value specifies that the <strong>BindingContext</strong> exposes the method of interest. Therefore, the <strong>InvokeMethodAction</strong> class will search the <strong>BindingContext</strong> of the attached control for the method, which in this case is the <strong>InvokeMethodDemoPageViewMode</strong>l instance.</p>
+<h2>Calling a Public Method with Two Parameters</h2>
+<p>The second scenario the <strong>InvokeMethodAction</strong> class targets it calling a <strong>public</strong> method with two parameters. This scenario is designed to handle invoking event handler methods.</p>
+<h5>Example 1</h5>
+<p>The following code shows an example of using the <strong>EventHandlerBehavior</strong> and <strong>InvokeMethodAction</strong> classes to invoke a <strong>Button.Clicked</strong> event handler method:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:c7de2f9c-c711-44fc-8d55-1f3168bf1333" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 182px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">StackLayout </span><span style="color: #ff0000">BindingContext</span><span style="color: #0000ff">="</span><span style="color: #808000">{x:Reference page}</span><span style="color: #0000ff">"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    ...
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button </span><span style="color: #ff0000">Text</span><span style="color: #0000ff">="Invoke Page Method"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="Clicked"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+                </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeMethodAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> MethodName</span><span style="color: #0000ff">="OnButtonClicked"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Button</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">StackLayout</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>OnButtonClicked</strong> method is <strong>public</strong> and takes two parameters:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:81fba16c-6ed6-43df-bba3-e3c6d74cb4df" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 77px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">public</span><span style="color: #000000"> </span><span style="color: #0000ff">void</span><span style="color: #000000"> OnButtonClicked (</span><span style="color: #0000ff">object</span><span style="color: #000000"> sender, EventArgs args)
+{
+    Counter</span><span style="color: #000000">++</span><span style="color: #000000">;
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Note that the <strong>OnButtonClicked</strong> method must accept parameters of the correct type for the <strong>Clicked</strong> event of a <strong>Button</strong>. Then, when the <strong>Button.Clicked</strong> event fires, the <strong>OnButtonClicked</strong> method is executed (which has a signature of <strong>object</strong> sender, <strong>EventArgs</strong> args). The <strong>TargetObject</strong> property value specifies that the <strong>BindingContext</strong> exposes the method of interest. Therefore, the <strong>InvokeMethodAction</strong> class will search the <strong>BindingContext</strong> of the attached control for the method, which in this case is the <strong>ContentPage</strong>. Note that the <strong>Actions</strong> property of the <strong>EventHandlerBehavior</strong> is set indirectly by creating the <strong>InvokeMethodAction</strong> instance as a child of the <strong>EventHandlerBehavior</strong> instance.</p>
+<h5>Example 2</h5>
+<p>The following code shows an example of using the <strong>EventHandlerBehavior</strong> and <strong>InvokeMethodAction</strong> classes to invoke a <strong>Label.PropertyChanged</strong> event handler method:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:8d5aee65-fd5d-4b9e-a49d-a8b99d854de7" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 196px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage </span><span style="color: #ff0000">... x:Name</span><span style="color: #0000ff">="page"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    ...
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Label </span><span style="color: #ff0000">Text</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding Message}</span><span style="color: #0000ff">"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Label.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="PropertyChanged"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+                </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeMethodAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding Source={x:Reference page}}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                              MethodName</span><span style="color: #0000ff">="OnMessagePropertyChanged"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Label.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Label</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>OnMessagePropertyChanged</strong> method is <strong>public</strong> and takes two parameters:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:4f87929d-de24-4b8d-b01c-b717f47dfd18" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 69px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">public</span><span style="color: #000000"> </span><span style="color: #0000ff">void</span><span style="color: #000000"> OnMessagePropertyChanged(</span><span style="color: #0000ff">object</span><span style="color: #000000"> sender, System.ComponentModel.PropertyChangedEventArgs args)
+{
+    ...
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<h5><font style="font-weight: normal">Note that the <font style="font-weight: bold">OnMessagePropertyChanged</font> method must accept parameters of the correct type for the <font style="font-weight: bold">PropertyChanged</font> event of a <font style="font-weight: bold">Label</font> (technically the <font style="font-weight: bold">PropertyChanged</font> event is defined in the <font style="font-weight: bold">BindableObject</font> class, which the <font style="font-weight: bold">Label</font> class ultimately inherits from). Then, when the <font style="font-weight: bold">Label.PropertyChanged</font> event fires, the <font style="font-weight: bold">OnMessagePropertyChanged</font> method is executed (which has a signature of <font style="font-weight: bold">object</font> sender, <font style="font-weight: bold">PropertyChangedEventArgs</font> args). The <font style="font-weight: bold">TargetObject</font> property value specifies that the page class exposes the method of interest. Therefore, the <font style="font-weight: bold">InvokeMethodAction</font> class will search the accompanying code-behind file for the <strong>OnMessagePropertyChanged</strong> method.</font></h5>
+<h3>Invoking a Method when Data Changes</h3>
+<p><a href="http://www.davidbritch.com/2016/04/xamarinforms-behaviors.html">Previously</a>, I’ve demonstrated using the <strong>DataChangedBehavior</strong> and <strong>InvokeMethodAction</strong> classes to invoke one or methods when data changes. Specifically, I demonstrated using the <strong>InvokeMethodAction</strong> class to invoke a <strong>public</strong> method with zero parameters.</p>
+<p>The following code shows an example of using the <strong>DataChangedBehavior</strong> and <strong>InvokeMethodAction</strong> classes to invoke a method with two parameters:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:6b885b85-c1ec-4d0e-8768-b7d3c6b482d9" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 243px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">ContentPage </span><span style="color: #ff0000">... x:Name</span><span style="color: #0000ff">="page"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    ...
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Label </span><span style="color: #ff0000">x:Name</span><span style="color: #0000ff">="doneLabel"</span><span style="color: #ff0000"> Text</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding IsDone}</span><span style="color: #0000ff">"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">Label.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:DataChangedBehavior </span><span style="color: #ff0000">Binding</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding Source={x:Reference doneLabel}, Path=Text}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                           ComparisonCondition</span><span style="color: #0000ff">="Equal"</span><span style="color: #ff0000"> 
+                                           Value</span><span style="color: #0000ff">="True"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+                </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeMethodAction </span><span style="color: #ff0000">TargetObject</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding Source={x:Reference page}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                              MethodName</span><span style="color: #0000ff">="OnIsDoneChanged"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:DataChangedBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Label.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">Label</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ContentPage</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>OnIsDoneChanged</strong> method is <strong>public</strong> and takes two parameters:</p>
+<div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:1d667baf-ee6e-4745-af4f-89598cce76c9" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 73px; width: 851px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">public</span><span style="color: #000000"> </span><span style="color: #0000ff">void</span><span style="color: #000000"> OnIsDoneChanged(</span><span style="color: #0000ff">object</span><span style="color: #000000"> sender, </span><span style="color: #0000ff">string</span><span style="color: #000000"> value)
+{
+    ...
+}
+</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Note that the <strong>OnIsDoneChanged</strong> method resembles an event handler, with the second parameter being of the type of the bound data (specified by the <strong>Binding</strong> property value of the <strong>DataChangedBehavior</strong> – in this case the <strong>string</strong> value of the bound <strong>Label.Text</strong> property). When the value of the <strong>Label.Text</strong> property becomes equal to “True”, the <strong>OnIsDoneChanged</strong> method is executed. The <strong>TargetObject</strong> property value specifies that the page class exposes the method of interest. Therefore, the <strong>InvokeMethodAction</strong> class will search the accompanying code-behind file for the <strong>OnIsDoneChanged</strong> method.</p>
+<h3>Summary</h3>
+<p>The <strong>InvokeMethodAction</strong> class executes a specified method in response to an event firing, or an item of data changing. Methods invoked by the class must be <strong>public</strong> and either have zero parameters, or two parameters. When methods have two parameters, their parameters must match the event being fired, or the type of the data that’s changed.</p>

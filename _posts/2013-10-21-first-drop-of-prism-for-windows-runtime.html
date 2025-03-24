@@ -1,0 +1,16 @@
+---
+layout: post
+title: First drop of Prism for the Windows Runtime for Windows 8.1
+date: '2013-10-21T12:12:00.001+01:00'
+author: David Britch
+tags:
+- Prism for the Windows Runtime
+- Windows 8
+- WinRT
+- Windows Store app
+modified_time: '2013-10-21T12:12:42.398+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8636407881097821126
+blogger_orig_url: https://dbritch.blogspot.com/2013/10/first-drop-of-prism-for-windows-runtime.html
+---
+
+<p>The first drop of Prism for the Windows Runtime, and the associated AdventureWorks Shopper reference implementation, can be found on <a href="http://prismwindowsruntime.codeplex.com/">codeplex</a>. To compile the code you’ll need Windows 8.1 and Visual Studio 2013. Obviously the usual caveats apply to the download, as it’s not final released code yet.</p> <h3>Change Log</h3> <ul> <li>Unnecessary styles cleaned up.  <li>Bottom apps bars use <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.controls.commandbar.aspx">CommandBar</a> and <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.controls.appbarbutton.aspx">AppBarButton</a>.  <li><strong>VisualStateAwarePage</strong> updated to support the new view states – <em>DefaultLayout</em>, <em>PortraitLayout</em>, and <em>MinimalLayout</em>.  <li><a href="http://msdn.microsoft.com/en-us/library/system.net.http.httpclient.aspx">System.Net.Http.HttpClient</a> replaced with <a href="http://msdn.microsoft.com/library/windows/apps/dn298639">Windows.Web.Http.HttpClient</a>.  <li>Prism’s <strong>FlyoutView</strong> and <strong>FlyoutService</strong> classes deprecated. Instead, Flyout pages inherit from <a href="http://msdn.microsoft.com/library/windows/apps/dn252814">SettingsFlyout</a>.  <li><strong>FormFieldTextBox</strong> control deprecated now that the <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.controls.textbox.aspx">TextBox</a> control supports a <a href="http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.xaml.controls.textbox.placeholdertext.aspx">PlaceholderText</a> property.  <li>Spikes added for GridView/ListView performance and AutoRotatingGridView.</li></ul>  

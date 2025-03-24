@@ -1,0 +1,98 @@
+---
+layout: post
+title: 'Fault Handling in Xamarin.Forms: Circuit Breaker using Polly'
+date: '2017-11-23T12:09:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-11-23T12:11:03.059Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-779773807699015683
+blogger_orig_url: https://dbritch.blogspot.com/2017/11/fault-handling-in-xamarinforms-circuit_23.html
+---
+
+<p><a href="https://www.davidbritch.com/2017/11/fault-handling-in-xamarinforms-circuit.html" target="_blank">Previously</a> I wrote about about handling faults that take a variable amount of time to recover from, in Xamarin.Forms, and discussed an implementation of the circuit breaker pattern. The advantage of the implementation was that the circuit breaker pattern was implemented without requiring any library code, for those sensitive to bloating their application package size.</p>
+<p>There are, however, fault handling libraries available and the go to library for .NET is <a href="https://github.com/App-vNext/Polly" target="_blank">Polly</a>, which includes fluent support for the circuit breaker pattern, and much more. In Polly, the various patterns are implemented via fault handling policies, which handle specific exceptions thrown by, or results returned by, the delegates that are executed through the policy.</p>
+<p>This blog post will discuss using Polly’s <strong>CircuitBreakerPolicy</strong>, which implements the circuit breaker pattern.</p>
+<h3>Implementation</h3>
+<p>The sample application, which can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/CircuitBreakerRESTPolly" target="_blank">GitHub</a>, is similar to the sample application from my previous blog post, with the custom implementation of the circuit breaker pattern replaced with Polly’s.</p>
+<h5>Initialization</h5>
+<p>The <strong>App</strong> class in the sample application initializes the classes that are responsible for communicating with the REST service:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:402804f6-db11-413d-bd43-6932a0212a8e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 71px; overflow: auto; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">TodoManager </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> TodoItemManager(
+    </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> RestService(
+        </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> ResilientRequestProvider()));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>RestService</strong> class provides data to the <strong>TodoItemManager</strong> class, with the <strong>RestService</strong> class making REST calls using the <strong>ResilientRequestProvider</strong> class, which uses Polly to implement the circuit breaker pattern.</p>
+<h5>ResilientRequestProvider</h5>
+<p>The following code example shows the <strong>GetAsync</strong> method from the <strong>ResilientRequestProvider</strong> class, which makes GET requests to a specified URI:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:3f7158c3-737b-4d40-b288-22f5091ca069" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 315px; overflow: auto; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> HttpInvoker(Func</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">HttpResponseMessage</span><span style="color: rgb(0, 0, 0);">&gt;&gt;</span><span style="color: rgb(0, 0, 0);"> operation)
+{
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> await circuitBreakerPolicy.ExecuteAsync(operation);
+}
+
+</span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> async Task</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> GetAsync</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(</span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> uri)
+{
+    </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">;
+    var httpResponse </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await HttpInvoker(async () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);">
+    {
+        var response </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode();
+        serialized </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> await response.Content.ReadAsStringAsync();
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> response;
+    });
+    </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> JsonConvert.DeserializeObject</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">TResult</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">(serialized);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>GetAsync</strong> method code is identical to my previous blog post. The lambda expression is passed to the <strong>HttpInvoker</strong> method, which in turn passes it to the <strong>ExecuteAsync</strong> method of the <strong>CircuitBreakerPolicy</strong> instance. Therefore, the code in the lambda expression is what will be executed by the circuit breaker, provided it’s in a state that allows that.</p>
+<p>There are three steps to using a fault handling policy, including the <strong>CircuitBreakerPolicy</strong>, in Polly:</p>
+<ol>
+<li>Specify the exceptions you want the policy to handle. 
+<li>Optionally specify the returned results you want the policy to handle. 
+<li>Specify how the policy should handle any faults.</li></ol>
+<p>The following code example shows the first and third steps, used in the sample application, for defining the operation of the <strong>CircuitBreakerPolicy</strong> instance:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ec78f2f1-ef55-44c3-85d5-20e4d6d48fb0" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 272px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">circuitBreakerPolicy </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Policy
+    .Handle</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Exception</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">()
+    .CircuitBreakerAsync(
+        </span><span style="color: rgb(128, 0, 128);">1</span><span style="color: rgb(0, 0, 0);">,
+        TimeSpan.FromSeconds(</span><span style="color: rgb(128, 0, 128);">5</span><span style="color: rgb(0, 0, 0);">),
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onBreak</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        (exception, delay) </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> 
+        Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Breaking the circuit for {delay.TotalSeconds} due to {exception.Message}</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">),
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onReset</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> 
+        Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Call ok - closing the circuit again.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">),
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> onHalfOpen</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        () </span><span style="color: rgb(0, 0, 0);">=&gt;</span><span style="color: rgb(0, 0, 0);"> 
+        Debug.WriteLine($</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">Circuit is half-open. The next call is a trial.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">));</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>Policy.Handle</strong> method is used to specify the exceptions you want the policy to handle. In this example the circuit breaker will trigger after a specified number of consecutive exceptions of the handled type (<strong>Exception</strong>).</p>
+<p>After specifying the exceptions the policy should handle, you must specify how the policy should handle any faults with the <strong>CircuitBreakerAsync</strong> method. There are multiple overloads for this method, and I used one for which five arguments must be specified:</p>
+<ol>
+<li>The consecutive number of exceptions that must be thrown to break the circuit. This is set to 1 in the sample application, purely for demonstration purposes.
+<li>The duration to keep the circuit broken for. This is set to 5s in the sample application, purely for demonstration purposes. 
+<li>An action to be called when the circuit changes to an <strong>Open</strong> state. 
+<li>An action to be called when the circuit changes to a <strong>Closed</strong> state. 
+<li>An action to be called when the circuit changes to a <strong>Half-open</strong> state.</li></ol>
+<h3>Executing a Delegate through the Policy</h3>
+<p>The overall operation is that the <strong>GetAsync</strong> method in the <strong>ResilientRequestProvider</strong> class invokes the <strong>HttpInvoker</strong> method, passing a <strong>Func</strong> that represents the GET request. The <strong>HttpInvoker</strong> method invokes Polly’s <strong>CircuitBreakerPolicy.ExecuteAsync</strong> method, passing the received <strong>Func</strong> as an argument.</p>
+<p>The circuit breaker policy then attempts to execute the <strong>Func</strong> passed in via the <strong>ExecuteAsync</strong> method. The circuit initially starts closed and executes the <strong>Func</strong>, and measures its fault or success. If the number of consecutive faults exceeds a specified threshold (1), the circuit will break (move to an <strong>Open</strong> state).</p>
+<p>When the circuit is in an <strong>Open</strong> state, any attempts to execute code through the policy will fail with a <strong>BrokenCircuitException</strong> being thrown. The circuit remains in an <strong>Open</strong> state for the duration specified by the <strong>CircuitBreakerAsync</strong> method (5s). After that timespan the circuit transitions to a <strong>Half-open</strong> state.</p>
+<p>When the circuit is in a <strong>Half-open</strong> state, the delegate passed to the <strong>ExecuteAsync</strong> method will be attempted. If it succeeds the circuit transitions back to a <strong>Closed</strong> state. However, if the delegate throws a handled exception, the circuit transitions back to the <strong>Open</strong> state, remaining open for the configured timespan. </p>
+<h3>Summary</h3>
+
+<p>Polly is a .NET fault handling library, which includes fluent support for the circuit breaker pattern. In Polly, the circuit breaker pattern is implemented by the <strong>CircuitBreakerPolicy</strong> type, which handles specific exceptions thrown by, or results returned by, the delegates that are executed through the policy.</p>
+<p>The <strong>CircuitBreakerPolicy</strong> type is highly configurable, allowing you to specify the exceptions to be handled, the returned results to be handled (not covered here), and how the policy should handle any faults.</p>
+<p>The advantage of using Polly over implementing your own circuit breaker pattern is that Polly includes multiple fault handling patterns that can easily be combined for additional resilience when handling faults.</p>

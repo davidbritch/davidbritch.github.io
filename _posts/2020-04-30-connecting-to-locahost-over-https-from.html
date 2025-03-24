@@ -1,0 +1,28 @@
+---
+layout: post
+title: Connecting to localhost over HTTPS from simulators and emulators (revisited)
+date: '2020-04-30T14:34:00.002+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2020-08-14T14:54:23.669+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5846066283737847734
+blogger_orig_url: https://dbritch.blogspot.com/2020/04/connecting-to-locahost-over-https-from.html
+---
+
+<p>Last year, I <a href="https://www.davidbritch.com/2019/10/xamarin-connecting-to-localhost-over.html">wrote about</a> how to connect to localhost over HTTPS from iOS simulators and Android emulators. Connecting to localhost web services that run over HTTP is straight forward, however it’s more work when the web service runs over HTTPS. It typically involves:</p><ul><li>Creating a self-signed developer certificate on your machine.</li>
+<li>Choosing the network stack to use.</li>
+<li>Specifying the address of your local machine.</li>
+<li>Bypassing the local development certificate check.</li>
+</ul><p><a href="https://docs.microsoft.com/en-gb/xamarin/cross-platform/deploy-test/connect-to-local-web-services">Connect to local web services from iOS simulators and Android emulators</a> documents how to carry out the above steps. However, I recently discovered that the approach for bypassing the local development certificate check on iOS no longer worked.</p><p>At the time of writing the <a href="https://www.davidbritch.com/2019/10/xamarin-connecting-to-localhost-over.html">original blog post</a>, the CoreFX implementation of <strong>HttpClient</strong> was in most Mono profiles, but not in iOS. The recommendation for iOS was to use the managed network stack, and the <strong>ServicePointManager</strong> API. However. since then iOS support for the CoreFX <strong>HttpClient</strong> implementation has dropped, which hooks into the <strong>NSUrlSession</strong> network stack. This ultimately means that now, on both iOS and Android, the approach for bypassing the local development certificate check is identical.</p><p>SSL errors can be ignored on iOS and Android for local HTTPS web services by setting the <strong>HttpClientHandler.ServerCertificateCustomValidationCallback</strong> property to a callback that ignores the result of the certificate security check for the localhost certificate:</p><pre><code class="cs">public HttpClientHandler GetInsecureHandler()
+{
+    HttpClientHandler handler = new HttpClientHandler();
+    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+    {
+        if (cert.Issuer.Equals("CN=localhost"))
+            return true;
+        return errors == System.Net.Security.SslPolicyErrors.None;
+    };
+    return handler;
+}</code></pre>This method must be in a class in a platform project, even if the <strong>HttpClient</strong> object is constructed in a shared project. The <strong>HttpClientHandler</strong> object returned by the <strong>GetInsecureHandler</strong> method should then be passed as an argument to the <strong>HttpClient</strong> constructor:</p><pre><code class="cs">HttpClient client = new HttpClient(GetInsecureHandler());</code></pre>The advantage of using this approach is that it hooks into the native network stacks on both iOS and Android (<strong>NSUrlSession</strong> on iOS, <strong>AndroidClientHandler</strong> on Android). </p><p>For a full sample that demonstrates this approach in Xamarin.Forms, see my <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TodoREST">GitHub repo</a>.</p>

@@ -1,0 +1,122 @@
+---
+layout: post
+title: Binding a FlexLayout to a Collection
+date: '2018-06-14T14:18:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-06-14T17:23:40.505+01:00'
+thumbnail: https://lh3.googleusercontent.com/-a-2SRr7VymU/WyJrXwEVZWI/AAAAAAAAC4U/-7qSTms0Yy8h-PC4K826FwZlYhOzmFVkACHMYCw/s72-c/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7618363984145148162
+blogger_orig_url: https://dbritch.blogspot.com/2018/06/binding-flexlayout-to-collection.html
+---
+
+<p>In May we published a doc on the new <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/user-interface/layouts/flex-layout" target="_blank">FlexLayout</a> control that’s present in Xamarin.Forms 3.0. <strong>FlexLayout</strong> is a versatile layout control that can arrange its children horizontally and vertically in a stack, and is also capable of wrapping its children if there are too many to fit in a single row or column. It also has options for orientation, alignment, and adapting to various screen sizes.</p> <p>In the FlexLayout <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/user-interface/layouts/flex-layout" target="_blank">guide</a> we outlined some common usage scenarios, with one being a <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/user-interface/layouts/flex-layout#catalog-items-with-flexlayout" target="_blank">catalog of items</a> that are displayed horizontally, which are navigated through by swiping in the appropriate direction. Each item in the catalog is defined inline in XAML as children of the <strong>FlexLayout</strong> element. This is all very well for static catalog items that are defined by the developer, but what if the data is stored in a collection that’s populated from an external source such as a web service, or a database? This would require the <strong>FlexLayout</strong> to bind to a collection containing the data. However, this isn’t currently possible as there’s no <strong>ItemsSource</strong> property (or similar) on the <strong>FlexLayout</strong> class.</p> <p>The purpose of this blog post is to demonstrate extending the <strong>FlexLayout</strong> with <strong>ItemsSource</strong> and <strong>ItemTemplate</strong> properties, so that it can bind to data stored in a collection. Note that the implementation will be a minimally viable implementation, rather than a production ready implementation. It demonstrates the simplest approach for binding a <strong>FlexLayout</strong> to a collection of items.</p> <p>The sample the code in this blog post comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayout" target="_blank">GitHub</a>.</p> <h3>Extending FlexLayout</h3> <p>The first step is to create a new class that inherits from <strong>FlexLayout</strong>, and add the required bindable properties and properties:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:70ba71c3-aafd-4506-9452-ee82d94dd6f3" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 452px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> ExtendedFlexLayout : FlexLayout
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">readonly</span><span style="color: rgb(0, 0, 0);"> BindableProperty ItemsSourceProperty </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> BindableProperty.Create(
+        nameof(ItemsSource), 
+        </span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(IEnumerable), 
+        </span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(ExtendedFlexLayout), 
+        propertyChanged: OnItemsSourceChanged);
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">readonly</span><span style="color: rgb(0, 0, 0);"> BindableProperty ItemTemplateProperty </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> BindableProperty.Create(
+        nameof(ItemTemplate), 
+        </span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(DataTemplate), 
+        </span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(ExtendedFlexLayout));
+
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> IEnumerable ItemsSource
+    {
+        </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);"> { </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (IEnumerable)GetValue(ItemsSourceProperty); }
+        </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);"> { SetValue(ItemsSourceProperty, value); }
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> DataTemplate ItemTemplate
+    {
+        </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);"> { </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (DataTemplate)GetValue(ItemTemplateProperty); }
+        </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);"> { SetValue(ItemTemplateProperty, value); }
+    }
+    ...
+}
+
+</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The code above simply defines <strong>ItemsSource</strong> and <strong>ItemTemplate</strong> properties, along with matching <strong>BindableProperty</strong> versions of them. The <strong>ItemTemplate</strong> property will reference the <strong>DataTemplate</strong> to apply to each item in the collection referenced by the <strong>ItemsSource</strong> property. Note that the <strong>ItemsSourceProperty</strong> has a property changed handler defined, named <strong>OnItemsSourceChanged</strong>. This is where the templated items will be added to the <strong>ExtendedFlexLayout</strong>:</p>
+<p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:2fe52afc-dbb8-474b-af75-5d147abc5eaf" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 433px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> ExtendedFlexLayout : FlexLayout
+{
+    ...
+    </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnItemsSourceChanged(BindableObject bindable, </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> oldVal, </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> newVal)
+    {
+        IEnumerable newValue </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> newVal </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> IEnumerable;
+        var layout </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> (ExtendedFlexLayout)bindable;
+
+        layout.Children.Clear();
+        </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (newValue </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+        {
+            </span><span style="color: rgb(0, 0, 255);">foreach</span><span style="color: rgb(0, 0, 0);"> (var item </span><span style="color: rgb(0, 0, 255);">in</span><span style="color: rgb(0, 0, 0);"> newValue)
+            {
+                layout.Children.Add(layout.CreateChildView(item));
+            }
+        }
+    }
+
+    View CreateChildView(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> item)
+    {
+        ItemTemplate.SetValue(BindableObject.BindingContextProperty, item);
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> (View)ItemTemplate.CreateContent();
+    }
+}
+</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The <strong>OnItemsSourceChanged</strong> method iterates through the collection referenced by the <strong>ItemsSource</strong> property, and calls the <strong>CreateChildView</strong> method for each item. This method sets the binding context of the <strong>ItemTemplate</strong> to the item, loads the <strong>DataTemplate</strong> referenced by the <strong>ItemTemplate</strong> property, and returns it to the <strong>OnItemsSourceChanged</strong> method, where the templated item is added as a child of the <strong>ExtendedFlexLayout.</strong></p><h3>Consuming the ExtendedFlexLayout</h3>
+<p>The <strong>ExtendedFlexLayout</strong> can be consumed in XAML as follows:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:5ad5567d-860e-4f8a-9248-6a433f3a6096" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 460px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ScrollView </span><span style="color: rgb(255, 0, 0);">Orientation</span><span style="color: rgb(0, 0, 255);">="Horizontal"</span><span style="color: rgb(255, 0, 0);"> Margin</span><span style="color: rgb(0, 0, 255);">="0,20"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout </span><span style="color: rgb(255, 0, 0);">ItemsSource</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Monkeys}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout.ItemTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">DataTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+               </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Frame </span><span style="color: rgb(255, 0, 0);">WidthRequest</span><span style="color: rgb(0, 0, 255);">="300"</span><span style="color: rgb(255, 0, 0);">
+                      HeightRequest</span><span style="color: rgb(0, 0, 255);">="480"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+                    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">FlexLayout </span><span style="color: rgb(255, 0, 0);">Direction</span><span style="color: rgb(0, 0, 255);">="Column"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Name}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> 
+                               Style</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource headerLabel}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Description}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Trait1}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> Margin</span><span style="color: rgb(0, 0, 255);">="10,0,0,0"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Trait2}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> Margin</span><span style="color: rgb(0, 0, 255);">="10,0,0,0"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">Text</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Trait3}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> Margin</span><span style="color: rgb(0, 0, 255);">="10,0,0,0"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Image </span><span style="color: rgb(255, 0, 0);">Source</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Image, 
+                                        Converter={StaticResource _stringToImageConverter}}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);">
+                               WidthRequest</span><span style="color: rgb(0, 0, 255);">="180"</span><span style="color: rgb(255, 0, 0);">
+                               HeightRequest</span><span style="color: rgb(0, 0, 255);">="180"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Label </span><span style="color: rgb(255, 0, 0);">FlexLayout.Grow</span><span style="color: rgb(0, 0, 255);">="1"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">Button </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+                    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">FlexLayout</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+                </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">Frame</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">DataTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout.ItemTemplate</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">ScrollView</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This <strong>ExtendedFlexLayout</strong> instance sets its <strong>ItemsSource</strong> property to a collection named <strong>Monkeys</strong>, which exists on the view model the page binds to. It also sets its <strong>ItemTemplate</strong> property to an inline <strong>DataTemplate</strong> that binds different views to different properties of each <strong>Monkey</strong> in the <strong>Monkeys</strong> collection. The result is, as per the <strong>FlexLayout</strong> <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/user-interface/layouts/flex-layout" target="_blank">guide</a>, there are three items displayed that can be navigated through by swiping in the appropriate direction:</p>
+<p><img width="274" height="484" title="Simulator Screen Shot - iPhone 8 - 2018-06-14 at 11.57.59" style="border: 0px currentcolor; border-image: none; padding-top: 0px; padding-right: 0px; padding-left: 0px; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-06-14 at 11.57.59" src="https://lh3.googleusercontent.com/-a-2SRr7VymU/WyJrXwEVZWI/AAAAAAAAC4U/-7qSTms0Yy8h-PC4K826FwZlYhOzmFVkACHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800" border="0"></p>
+<p>The difference between the <strong>FlexLayout</strong> <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/user-interface/layouts/flex-layout" target="_blank">guide</a> and this approach is that in the guide each item is declared inline in XAML. Here, each item comes from a collection that the <strong>ExtendedFlexLayout</strong> binds to. The advantage of this approach is that it allows the displayed data to be populated from an external source, such as a web service or a database.</p><h3>Issues</h3>
+<p>As I previously mentioned, the <strong>ExtendedFlexLayout</strong> is a minimally viable implementation. While it works for the scenario outlined here, it’s quite limited:</p>
+<ul>
+<li>It doesn’t respond to the bound collection changing at runtime (think <strong>ObservableCollection</strong>). Instead, the entire collection must be available when binding occurs.</li>
+<li>It doesn’t respond to binding context changes. The binding context must be set when binding occurs, and can’t change.</li>
+<li>It only permits a single defined <strong>DataTemplate</strong> to be used. It doesn’t allow a <strong>DataTemplateSelector</strong> to choose a <strong>DataTemplate</strong> at runtime based on the value of a bound property.</li><li>There’s no UI virtualisation. For large collections, the <strong>ExtendedFlexLayout</strong> could consume a lot of memory.</li></ul>
+<p>I’ll explore some of these issues in future blog posts.</p>
+<h3>Summary</h3>
+<p>This blog post has explained how to extend the <strong>FlexLayout</strong> with <strong>ItemsSource</strong> and <strong>ItemTemplate</strong> properties, so that it can bind to data stored in a collection. However, the <strong>ExtendedFlexLayout</strong> is currently a minimally viable implementation. My next blog post will look at extending the implementation with additional functionality.</p><!--EndFragment-->
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayout" target="_blank">GitHub</a>.</p>

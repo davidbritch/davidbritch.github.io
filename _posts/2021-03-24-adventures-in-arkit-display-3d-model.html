@@ -1,0 +1,49 @@
+---
+layout: post
+title: Adventures in ARKit - display a 3D model
+date: '2021-03-24T12:26:00.003Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-24T12:27:38.136Z'
+thumbnail: https://1.bp.blogspot.com/--IWi554fekU/YFswIe61syI/AAAAAAAADUs/D57TGTdGO9AYQ_MBnJX1G6f3A_COxmZxQCNcBGAsYHQ/s72-c/IMG_1003.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-725403740089402641
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-display-3d-model.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-rotating-earth.html">previous blog post</a> I discussed how to overlay an image of the earth on a <code>SphereNode</code>, which derives from <code>SCNNode</code>, and manipulate it through touch gestures.</p>
+<p>In this blog post I’ll discuss how to display a 3D model in a scene. Specifically, it’ll be a model of the moon that can be manipulated similarly through touch gestures. Although the end result, a rotating moon, appears to be similar to a rotating earth, they are accomplished via different techniques.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/07%20-%20ARKitFun%20-%203d%20model">GitHub</a>.</p>
+<h2 id="display-a-3d-model">Display a 3D model</h2>
+<p>ARKit and SceneKit support many different 3D model formats, including .dae, .usdz, .obj and .mtl, and many more. The exact formats supported are dependent upon the version of iOS you are using. Apple currently recommends using .usdz files (and has some <a href="https://developer.apple.com/augmented-reality/quick-look/">samples</a>), but this format can’t be consumed by the first release of ARKit. Therefore, for maximum compatibility, I’ve used a .dae model.</p>
+<p><a href="https://free3d.com">free3d.com</a> is a good source of 3D models, both free and paid. However, it’s quite likely that any 3D model you download will first need manipulating to fit your requirements. This can be accomplished in a tool such as <a href="https://www.blender.org">Blender</a>. I used Blender to convert the model I downloaded to .dae format, and to scale it to my needs. Note that there’s a learning curve in getting to grips with Blender.</p>
+<p>Once you have a 3D model ready to use it’s worth opening it in Xcode, for two reasons. Firstly, Xcode can be used to reveal the name of the root node in the model, that you <em>may</em> need when adding the model to your scene. Secondly, the model will display in Xcode exactly how it will display in your scene. So you can use Xcode to discover any problems with your model, and even fix some of them. For example, my model of the moon was displaying in red only. This is because, for memory reasons when handling greyscale images assigned as the Diffuse property, SceneKit will store the greyscale data in the red channel, but will zero the blue and green channels. This can be fixed converting any greyscale images to RGB, and sometimes by manipulating the Components drop down for the Diffuse property in Xcode.</p>
+<p>Once you have a 3D model that renders correctly in Xcode, it can be added to your ARKit app. 3D models are added to a scene as a <code>SCNNode</code>, which can then be positioned and manipulated as required. As always, this can be accomplished in the <code>ViewDidAppear</code> method in the <code>ViewController</code> class:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+    <span class="token punctuation">{</span>
+        AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+        LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+        WorldAlignment <span class="token operator">=</span> ARWorldAlignment<span class="token punctuation">.</span>Gravity
+    <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    SCNScene scene <span class="token operator">=</span> SCNScene<span class="token punctuation">.</span><span class="token function">FromFile</span><span class="token punctuation">(</span><span class="token string">"moon.dae"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    SCNNode node <span class="token operator">=</span> scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">;</span>
+    node<span class="token punctuation">.</span>Position <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token operator">-</span><span class="token number">25f</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>node<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span> 
+<span class="token punctuation">}</span>
+</code></pre>
+<p>In this example, the 3D model of the moon is retreived using the <code>SCNScene</code> type, and its root node is retrieved from the scene as a <code>SCNNode</code>. The node is then positioned and added to the scene. In addition, gesture recognisers are added to the <code>SCNNode</code> that aren’t shown in the code above.</p>
+<p>The overall effect is that when the app runs, a <code>SCNNode</code> that resembles the moon appears:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/--IWi554fekU/YFswIe61syI/AAAAAAAADUs/D57TGTdGO9AYQ_MBnJX1G6f3A_COxmZxQCNcBGAsYHQ/s1136/IMG_1003.PNG" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" height="320" data-original-height="1136" data-original-width="640" src="https://1.bp.blogspot.com/--IWi554fekU/YFswIe61syI/AAAAAAAADUs/D57TGTdGO9AYQ_MBnJX1G6f3A_COxmZxQCNcBGAsYHQ/s320/IMG_1003.PNG"/></a></div>
+<p>Tapping on the <code>SCNNode</code> starts it rotating, and while rotating, tapping it a second time stops it rotating. In addition, the pinch gesture will resize the <code>SCNNode</code>, and the rotate gesture enables the Z-axis of the <code>SCNNode</code> to be manipulated.</p>
+<p>If you want to manipulate a particular node in the 3D model, you’ll need to know its name. This can be determined by opening the model in Xcode and navigating the scene graph for the model until you find the name for the required part of the model. This can then be retrieved as a <code>SCNNode</code>:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp">SCNNode node <span class="token operator">=</span> scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">FindChildNode</span><span class="token punctuation">(</span><span class="token string">"MyModelPart"</span><span class="token punctuation">,</span> <span class="token keyword">true</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>Once you’ve retreived the desired part of the model as a <code>SCNNode</code>, it can be manipulated as required. For example, you could use this technique to retrieve the arm from a model of a person, and then animate it.</p>
+

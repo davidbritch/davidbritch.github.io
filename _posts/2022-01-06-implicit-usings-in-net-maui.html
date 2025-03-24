@@ -1,0 +1,52 @@
+---
+layout: post
+title: Implicit usings in .NET MAUI
+date: '2022-01-06T14:58:00.005Z'
+author: David Britch
+tags:
+- ".NET MAUI"
+- C#
+modified_time: '2022-01-06T15:01:10.376Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8632731829712970374
+blogger_orig_url: https://dbritch.blogspot.com/2022/01/implicit-usings-in-net-maui.html
+---
+
+<p>.NET MAUI Preview 11 now uses implicit usings to reduce the number of <code>using</code> statements you need to specify at the top of each file. For more information about implicit usings, see <a href="https://devblogs.microsoft.com/dotnet/welcome-to-csharp-10/">this blog post</a>.</p>
+<p>Specifically, from Preview 11 onwards you don’t need to add <code>using</code> statements for the following namespaces, which are all now available implicitly in .NET MAUI projects:</p>
+<ul>
+<li><code>Microsoft.Extensions.DependencyInjection</code></li>
+<li><code>Microsoft.Maui</code></li>
+<li><code>Microsoft.Maui.Controls</code></li>
+<li><code>Microsoft.Maui.Controls.Hosting</code></li>
+<li><code>Microsoft.Maui.Controls.Xaml</code></li>
+<li><code>Microsoft.Maui.Graphics</code></li>
+<li><code>Microsoft.Maui.Essentials</code></li>
+<li><code>Microsoft.Maui.Hosting</code></li>
+</ul>
+<p>If you’re new to .NET MAUI, implicit usings really make life easier as you don’t have to hunt around to find out which namespaces specific types are in. However, note that there are sometimes types you’ll need to use that do reside in other namespaces for which you’ll have to add <code>using</code> statements (e.g. the types in <code>Microsoft.Maui.Layouts</code>).</p>
+<p>The project templates also now use file-scoped namespaces. All I’ll say is it’s a syntax I’m still getting used to.</p>
+<h2 id="net-android">.NET Android</h2>
+<p>.NET Android projects now include the following implicit usings:</p>
+<ul>
+<li><code>Android.App</code></li>
+<li><code>Android.Widget</code></li>
+<li><code>Android.OS.Bundle</code></li>
+</ul>
+<p>Therefore, it’s not necessary to add <code>using</code> statements for the above namespaces.</p>
+<h2 id="net-ios">.NET iOS</h2>
+<p>.NET iOS projects (and MacCatalyst, and tvOS) now include the following implicit usings:</p>
+<ul>
+<li><code>CoreGraphics</code></li>
+<li><code>Foundation</code></li>
+<li><code>UIKit</code></li>
+</ul>
+<p>Therefore, it’s not necessary to add <code>using</code> statements for the above namespaces.</p>
+<h2 id="net-macos">.NET macOS</h2>
+<p>.NET macOS projects now include the following implicit usings:</p>
+<ul>
+<li><code>AppKit</code></li>
+<li><code>CoreGraphics</code></li>
+<li><code>Foundation</code></li>
+</ul>
+<p>Therefore, it’s not necessary to add <code>using</code> statements for the above namespaces.</p>
+

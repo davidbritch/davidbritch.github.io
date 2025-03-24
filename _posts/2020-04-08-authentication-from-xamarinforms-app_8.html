@@ -1,0 +1,67 @@
+---
+layout: post
+title: Combining Xamarin.Essentials WebAuthenticator with IdentityModel.OidcClient
+date: '2020-04-08T14:54:00.001+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+modified_time: '2020-04-08T15:28:28.526+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8358511622269763484
+blogger_orig_url: https://dbritch.blogspot.com/2020/04/authentication-from-xamarinforms-app_8.html
+---
+
+<p><a href="https://www.davidbritch.com/2020/04/authentication-from-xamarinforms-app.html">Previously</a> I wrote about using the Xamarin.Essentials <strong>WebAuthenticator</strong> class to initiate an authentication flow with IdentityServer, and wait for a callback/redirect to the redirect URI scheme. Although my blog post didn’t show it, there was an <strong>IdentityService</strong> class that created the URI for the authorization endpoint, including the code challenge, CSRF token, and other required query parameters. This class also handled exchanging the received authorization code for an access token, which could then be used in API calls.</p><p>While this approach works well, it does require a detailed knowledge of the <a href="https://tools.ietf.org/html/rfc8252">OAuth 2.0 spec for native apps</a>. While that’s certainly something I’d recommend understanding fully, it would also be convenient if there was a library that did the heavy lifting for you.</p><h2>Enter IdentityModel.OidcClient</h2><p><a href="https://github.com/IdentityModel/IdentityModel.OidcClient">IdentityModel.OidcClient</a> is a C#/.NET standard 2.0 OpenID certified library for native mobile and desktop applications. It’s a small, simple, and elegant library that I strongly recommend for communicating with IdentityServer.</p><p>The library has two modes:</p><ol><li>In manual mode, OidcClient helps you with creating the necessary start URL and state parameters, but you need to coordinate with the browser you want to use. Then, when the browser work is completed, OidcClient can take over to process the response, get the access/refresh tokens, and contact other endpoints.</li>
+<li>In automatic mode, you can encapsulate all browser interactions by implementing the <strong>IBrowser</strong> interface. Then, authentication and token requests become one line of code.</li>
+</ol><p>I’ve <a href="https://github.com/davidbritch/xamarin-forms/tree/master/NativeBrowsersWithOIDCClient">previously</a> used manual mode for interacting with IdentityServer, when I had to write my own platform code for invoking native browsers. However, now that <strong>WebAuthenticator</strong> does that for you, it’s much simpler to use automatic mode and wrap <strong>WebAuthenticator</strong> using the <strong>IBrowser</strong> interface.</p><p>The <strong>IBrowser</strong> interface is used to model a browser, and specifies that a single method named <strong>InvokeAsync</strong> requires implementing, which returns a <strong>Task&lt;BrowserResult&gt;</strong>. The <strong>InvokeAsync</strong> method should just invoke your browser to initiate the authentication flow, and return the response in a <strong>BrowserResult</strong> object.</p><p>A <strong>Browser</strong> class that implements the <strong>IBrowser</strong> interface, which uses <strong>WebAuthenticator</strong> to provide the browser interactions, is shown below:</p><pre><code class="cs">public class Browser : IBrowser
+{
+    public async Task<browserresult> InvokeAsync(BrowserOptions options, CancellationToken cancellationToken = default)
+    {
+        WebAuthenticatorResult authResult =
+                await WebAuthenticator.AuthenticateAsync(new Uri(options.StartUrl), new Uri(Constants.RedirectUri));
+        return new BrowserResult()
+        {
+            Response = ParseAuthenticatorResult(authResult)
+        };
+    }
+
+    string ParseAuthenticatorResult(WebAuthenticatorResult result)
+    {
+        string code = result?.Properties["code"];
+        string scope = result?.Properties["scope"];
+        string state = result?.Properties["state"];
+        string sessionState = result?.Properties["session_state"];
+        return $"{Constants.RedirectUri}#code={code}&scope={scope}&state={state}&session_state={sessionState}";
+    }
+}</pre></code><p>Here, the <strong>InvokeAsync</strong> method calls the <strong>WebAuthenticator.AuthenticateAsync</strong> method, and returns the parsed response in a <strong>BrowserResult</strong> object.</p><p>An authentication flow can then be initiated by a <strong>OidcClient</strong> object as follows:</p><pre><code class="cs">OidcClient _oidcClient;
+LoginResult _loginResult;
+
+var options = new OidcClientOptions
+{
+    Authority = Constants.AuthorityUri,
+    ClientId = Constants.ClientId,
+    Scope = Constants.Scope,
+    RedirectUri = Constants.RedirectUri,
+    ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
+    Browser = new Browser()
+};
+
+_oidcClient = new OidcClient(options);
+_loginResult = await _oidcClient.LoginAsync(new LoginRequest());</pre></code><p>Here, an <strong>OidcClientOptions</strong> object is created that defines the precise authentication flow that will be invoked with IdentityServer. The <strong>OidcClientOptions</strong> object also defines the <strong>IBrowser</strong> object that's used to provide browser interactions. An <strong>OidcClient</strong> object is then created, and its <strong>LoginAsync</strong> method is invoked to initiate the authentication flow. The result of the authentication flow will then be stored in a <strong>LoginResult</strong> object, which can include different tokens (access, identity, refresh) along with other data.</p><p>The access token can then be used in subsequent API calls to IdentityServer:</p><pre><code class="cs">HttpClient _httpClient;
+
+_httpClient = new HttpClient();
+_httpClient.BaseAddress = new Uri(Constants.ApiUri);
+_httpClient.DefaultRequestHeaders.Authorization
+    = new AuthenticationHeaderValue("Bearer", _loginResult?.AccessToken ?? string.Empty);
+
+HttpResponseMessage response = await _httpClient.GetAsync("test");
+string content = await response.Content.ReadAsStringAsync();
+
+if (response.IsSuccessStatusCode)
+{
+    editor.Text = JArray.Parse(content).ToString();
+}
+else
+{
+    editor.Text = response.ReasonPhrase;
+}</pre></code><p>Here, the access token is retrieved from the <strong>LoginResult</strong> object and set as the bearer token in the <strong>Authorization</strong> header of a <strong>HttpClient</strong> object: The <strong>HttpClient</strong> object then makes a call to a specific IdentityServer API, using the access token for authorization.</p><h3>Wrapping up</h3><p>This blog post has shown how to combine the Xamarin.Essentials <strong>WebAuthenticator</strong> class with the IdentityModel.OidcClient library to initiate authentication flows, and process the response. The advantage of combining <strong>WebAuthenticator</strong> with <strong>OidcClient</strong> is that (1) you don’t have to write any platform code to invoke native browsers, and (2) you don’t need to write any code to generate the correct authentication query parameters. In addition, because <strong>OidcClient</strong> is OpenID certified, you have peace of mind that it’s correctly implemented the OAuth 2.0 spec for native apps. For more information about the IdentityModel.OidcClient library, see <a href="https://identitymodel.readthedocs.io/en/latest/native/overview.html">Building mobile/native clients</a> in the <a href="https://identitymodel.readthedocs.io/en/latest/index.html">IdentityModel</a> docs.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/WebAuthenticatorDemo-OIDCClient">GitHub</a>.</p>

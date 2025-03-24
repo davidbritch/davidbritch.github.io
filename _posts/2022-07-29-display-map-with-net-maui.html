@@ -1,0 +1,37 @@
+---
+layout: post
+title: Display a map with .NET MAUI
+date: '2022-07-29T10:41:00.028+01:00'
+author: David Britch
+tags:
+- ".NET MAUI"
+modified_time: '2022-07-29T10:52:53.533+01:00'
+thumbnail: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsLU5RKk0XenN12vxGsr_VIpwSvo7U80VuiqDET8RUusqyjOvCPfXlA1OVX-4ty7NIJT0JA26FRIquSXUZvgLaX7Bq9S1oj4JdfrcJkNYqZavtZQuPMH9cWGIDZsJrpQHfrxIJtBy1NaAWynGUJNwNHGoCxBbn-RyYbSBdoae9CvLMBDzxFJA3hIFV/s72-c/map-handler.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7301788722752428260
+blogger_orig_url: https://dbritch.blogspot.com/2022/07/display-map-with-net-maui.html
+---
+
+<p>Many apps, whether mobile or desktop, require the ability to show a map. However, .NET MAUI doesn’t currently have a view (control) capable of displaying a map. That’s frustrating because the underlying platforms that .NET MAUI supports all largely have native map views. Android has the <code>MapView</code>. iOS/MacCatalyst has <code>MKMapView</code>. WinUI has…nothing.</p>
+<p>So, most of the platforms .NET MAUI runs on can display a map, but .NET MAUI itself lacks a cross-platform view to display a map. Therefore I’ve created a very simple cross-platform <code>Map</code> view. It was written primarily for me to understand how to write handlers, rather than being a fully featured control. It displays a map, lets you scroll it, zoom it, show your location, show traffic data, and change the map imagery (street/satellite/hybrid). There’s plenty it doesn’t do - no initialising the map to a specific location, no map pins, no routes, no drawing on the map surface etc. A fully featured <code>Map</code> view is beyond the scope of what I was attempting to do, and besides, there will be one appearing in .NET MAUI in the not too distant future.</p>
+<p>As it’s a simpler example than the <code>Video</code> view I published yesterday, I thought I’d share it.</p>
+<h2 id="handler-architecture">Handler architecture</h2>
+<p>.NET MAUI has an extension mechanism, known as <em>handlers</em>, that you can use to customise existing .NET MAUI controls, and write your own cross-platform views whose implementations are provided by native views.</p>
+<p>Each .NET MAUI view has an interface representation, that abstracts a cross-platform view. Cross-platform views that implement these interfaces are known as  <em>virtual views</em>.  <em>Handlers</em>  map these virtual views to native views on each platform, and are responsible for creating the underlying native view, and mapping their API to the cross-platform control.</p>
+<p>Handlers are accessed through their view-specific interface. This avoids the cross-platform view having to reference its handler, and the handler having to reference the cross-platform view. Each handler typically provides a  <em>property mapper</em>, and sometimes a  <em>command mapper</em>, that maps the cross-platform view API to the native view API.</p>
+<p>The following diagram shows the handler architecture for the  <code>Map</code>  view:</p>
+<div class="separator" style="clear: both;"><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsLU5RKk0XenN12vxGsr_VIpwSvo7U80VuiqDET8RUusqyjOvCPfXlA1OVX-4ty7NIJT0JA26FRIquSXUZvgLaX7Bq9S1oj4JdfrcJkNYqZavtZQuPMH9cWGIDZsJrpQHfrxIJtBy1NaAWynGUJNwNHGoCxBbn-RyYbSBdoae9CvLMBDzxFJA3hIFV/s1060/map-handler.png" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" width="600" data-original-height="636" data-original-width="1060" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsLU5RKk0XenN12vxGsr_VIpwSvo7U80VuiqDET8RUusqyjOvCPfXlA1OVX-4ty7NIJT0JA26FRIquSXUZvgLaX7Bq9S1oj4JdfrcJkNYqZavtZQuPMH9cWGIDZsJrpQHfrxIJtBy1NaAWynGUJNwNHGoCxBbn-RyYbSBdoae9CvLMBDzxFJA3hIFV/s600/map-handler.png"/></a></div>
+<p>The <code>Map</code> view implements the <code>IMap</code> interface. On iOS/MacCatalyst, the <code>MapHandler</code> class maps the cross-platform <code>Map</code> view to an iOS/MacCatalyst <code>MKMapView</code>. On Android, the <code>Map</code> view is mapped to a <code>MapView</code> that's provided by the <em>Xamarin.GooglePlayServices.Maps</em> NuGet package. There’s no Windows implementation, due to the lack of a map control on WinUI.</p>
+<p>The <code>PropertyMapper</code> in the <code>MapHandler</code> class maps the cross-platform view properties to native view APIs via <em>mapper</em> methods. Each platform then provides implementations of the mapper methods, which manipulate the native view API as appropriate. The overall effect is that when a property is set on the cross-platform view, the underlying native view is updated as required.</p>
+<p>Handler implementations on each platform must override the <code>CreatePlatformView</code> method, and optionally the <code>ConnectHandler</code> and <code>DisconnectHandler</code> methods. The <code>CreatePlatformView</code> method should return the native view that implements the cross-platform view. The <code>ConnectHandler</code> method should perform any required native view setup, and the <code>DisconnectHandler</code> method should perform any required native view cleanup. Note that the <code>DisconnectHandler</code> override is intentionally not invoked by .NET MAUI - you have to invoke it yourself from a suitable place in your app’s lifecycle.</p>
+<h2 id="code">Code</h2>
+<p>I’m not going to provide a walkthrough of the code. But you can download it, and step through it yourself, by cloning the  <a href="https://github.com/davidbritch/dotnet-maui-maps">repo</a>. However, I will give you some pointers to working through the code.</p>
+<p>The important files in the solution are highlighted below:</p>
+<img alt="" border="0" height="400" data-original-height="464" data-original-width="296" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiKv3_-er3NwSWnHgq6pvlJJvcB6MkzRr3C4kqG8ddsAien8lMddbrGIBcmh-SlNsQu1fDyVicMFwvmnFczSQM5-su6TL6H1NSe2cETseuEW-Dfy7iqGoe17GViv4aW2ArSaZuDDq0eEhMJ6QwgKKD51YDphgeXiqgNpypNvDa_XBZxJfodIKMWh1Im/s400/Capture.PNG"/>
+<ul>
+<li>Controls - the cross-platform view implementation. <code>IMap</code> abstracts the <code>Map</code> view and exposes members that the <em>handler</em> needs to be able to access, and derives from .NET MAUI’s <code>View</code>. The <code>Map</code> class, which derives from .NET MAUI’s <code>View</code> class, provides the cross-platform implementation, and is simply a collection of <code>BindableProperty</code> objects.</li>
+<li>Handlers - The <code>IMapHandler</code> interface, which derives from .NET MAUI’s <code>IViewHandler</code>, specifies <code>VirtualView</code> and <code>PlatformView</code> properties. The <code>VirtualView</code>property is used to access the cross-platform view from the handler, and the <code>PlatformView</code> property is used to access the native view that implements the <code>Map</code> view. The <code>MapHandler</code> class is a partial class, whose platform-specific implementations are in the <em>MapHandler.Android.cs</em>, <em>MapHandler.iOS.cs</em> and <em>MapHandler.Windows.cs</em> files.</li>
+</ul>
+<p>A handler must be registered against its cross-platform view, and this takes place in <em>MauiProgram.cs</em> with the <code>ConfigureMauiHandler</code>/<code>AddHandler</code> methods.</p>
+<p>On Android you’ll need to insert your Google Map API key into the Android Manifest for the map to appear.</p>
+<p>I hope this ends up being useful to folks on their journey to understand how to write custom controls backed by .NET MAUI handlers.</p>
+

@@ -1,0 +1,136 @@
+---
+layout: post
+title: Adventures in ARKit - image detection
+date: '2021-04-20T10:46:00.005+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2021-04-20T10:50:04.261+01:00'
+thumbnail: https://1.bp.blogspot.com/-7hAvEFiEWa8/YH6cQwOnrsI/AAAAAAAADV0/qeP70diMElQ1okAAdRZf_sulartFyMlJACNcBGAsYHQ/s72-c/BookCover.jpg
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3687362323870714126
+blogger_orig_url: https://dbritch.blogspot.com/2021/04/adventures-in-arkit-image-detection.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-display-3d-model.html">previous blog post</a> I discussed how to display a 3D model in a scene. In this blog I’ll discuss how to perform image detection in a scene. Specifically, the app will identify the following image in a scene, and highlight it:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-7hAvEFiEWa8/YH6cQwOnrsI/AAAAAAAADV0/qeP70diMElQ1okAAdRZf_sulartFyMlJACNcBGAsYHQ/s1429/BookCover.jpg" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" height="400" data-original-height="1429" data-original-width="1000" src="https://1.bp.blogspot.com/-7hAvEFiEWa8/YH6cQwOnrsI/AAAAAAAADV0/qeP70diMElQ1okAAdRZf_sulartFyMlJACNcBGAsYHQ/s400/BookCover.jpg"/></a></div>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/08%20-%20ARKitFun%20-%20image%20detection">GitHub</a>.</p>
+<h2 id="image-detection">Image detection</h2>
+<p>The simplest approach to declaring the image to be detected is to add it to your app’s asset catalog as an <strong>AR Reference Image</strong> inside an <strong>AR Resource Group</strong>.</p>
+<p>Writing code to detect the image is a two-step process:</p>
+<ol>
+<li>Create an <code>ARSCNViewDelegate</code> class that defines the code to be executed when the image is detected.</li>
+<li>Consume the <code>ARSCNViewDelegate</code> instance in your <code>ViewController</code> class, to detect the image.</li>
+</ol>
+<p>The following code example shows the <code>SceneViewDelegate</code> class, which derives from <code>ARSCNViewDelegate</code>:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Nodes<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">SceneViewDelegate</span> <span class="token punctuation">:</span> ARSCNViewDelegate
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">DidAddNode</span><span class="token punctuation">(</span>ISCNSceneRenderer renderer<span class="token punctuation">,</span> SCNNode node<span class="token punctuation">,</span> ARAnchor anchor<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">if</span> <span class="token punctuation">(</span>anchor <span class="token keyword">is</span> ARImageAnchor imageAnchor<span class="token punctuation">)</span>
+            <span class="token punctuation">{</span>
+                ARReferenceImage image <span class="token operator">=</span> imageAnchor<span class="token punctuation">.</span>ReferenceImage<span class="token punctuation">;</span>
+                nfloat width <span class="token operator">=</span> image<span class="token punctuation">.</span>PhysicalSize<span class="token punctuation">.</span>Width<span class="token punctuation">;</span>
+                nfloat height <span class="token operator">=</span> image<span class="token punctuation">.</span>PhysicalSize<span class="token punctuation">.</span>Height<span class="token punctuation">;</span>
+
+                PlaneNode planeNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">PlaneNode</span><span class="token punctuation">(</span>width<span class="token punctuation">,</span> height<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">,</span> UIColor<span class="token punctuation">.</span>Red<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                <span class="token keyword">float</span> angle <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token keyword">float</span><span class="token punctuation">)</span><span class="token punctuation">(</span><span class="token operator">-</span>Math<span class="token punctuation">.</span>PI <span class="token operator">/</span> <span class="token number">2</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                planeNode<span class="token punctuation">.</span>EulerAngles <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span>angle<span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                node<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>planeNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>SceneViewDelegate</code> class overrides the <code>DidAddNode</code> method, which is executed when the image is detected in the scene. This method first checks that the detected image is an <code>ARImageAnchor</code>, which represents an anchor for a known image that ARKit detects in the scene. Then the dimensions of the detected image are determined, and a red <code>PlaneNode</code> (of the same dimensions) is created and overlaid on the detected image. In addition, the overlaid <code>PlaneNode</code> will always orient itself correctly over the detected image.</p>
+<p>The <code>PlaneNode</code> class is simply an <code>SCNNode</code>, which uses an <code>SCNPlane</code> geometry that represents a square or rectangle:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun<span class="token punctuation">.</span>Nodes
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">PlaneNode</span> <span class="token punctuation">:</span> SCNNode
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token function">PlaneNode</span><span class="token punctuation">(</span>nfloat width<span class="token punctuation">,</span> nfloat length<span class="token punctuation">,</span> SCNVector3 position<span class="token punctuation">,</span> UIColor color<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNNode node <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNNode</span>
+            <span class="token punctuation">{</span>
+                Geometry <span class="token operator">=</span> <span class="token function">CreateGeometry</span><span class="token punctuation">(</span>width<span class="token punctuation">,</span> length<span class="token punctuation">,</span> color<span class="token punctuation">)</span><span class="token punctuation">,</span>
+                Position <span class="token operator">=</span> position<span class="token punctuation">,</span>
+                Opacity <span class="token operator">=</span> <span class="token number">0.5f</span>
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            <span class="token function">AddChildNode</span><span class="token punctuation">(</span>node<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        SCNGeometry <span class="token function">CreateGeometry</span><span class="token punctuation">(</span>nfloat width<span class="token punctuation">,</span> nfloat length<span class="token punctuation">,</span> UIColor color<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNMaterial material <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNMaterial</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>Diffuse<span class="token punctuation">.</span>Contents <span class="token operator">=</span> color<span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>DoubleSided <span class="token operator">=</span> <span class="token keyword">false</span><span class="token punctuation">;</span>
+
+            SCNPlane geometry <span class="token operator">=</span> SCNPlane<span class="token punctuation">.</span><span class="token function">Create</span><span class="token punctuation">(</span>width<span class="token punctuation">,</span> length<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            geometry<span class="token punctuation">.</span>Materials <span class="token operator">=</span> <span class="token keyword">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> material <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+            <span class="token keyword">return</span> geometry<span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>PlaneNode</code> constructor takes arguments that represent the width and height of the node, it’s position, and a color. The constructor creates a <code>SCNNode</code>, assigns a geometry to its <code>Geometry</code> property, sets its position and opacity, and adds the child node to the <code>SCNNode</code>.</p>
+<p>The <code>SceneViewDelegate</code> class can then be consumed in your <code>ViewController</code> class, to detect the image:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> Foundation<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+        <span class="token keyword">readonly</span> ARSCNView sceneView<span class="token punctuation">;</span>
+
+        <span class="token keyword">public</span> <span class="token function">ViewController</span><span class="token punctuation">(</span>IntPtr handle<span class="token punctuation">)</span> <span class="token punctuation">:</span> <span class="token keyword">base</span><span class="token punctuation">(</span>handle<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            sceneView <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ARSCNView</span>
+            <span class="token punctuation">{</span>
+                ShowsStatistics <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                Delegate <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SceneViewDelegate</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+            View<span class="token punctuation">.</span><span class="token function">AddSubview</span><span class="token punctuation">(</span>sceneView<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            NSSet<span class="token operator">&lt;</span>ARReferenceImage<span class="token operator">&gt;</span> images <span class="token operator">=</span> ARReferenceImage<span class="token punctuation">.</span><span class="token function">GetReferenceImagesInGroup</span><span class="token punctuation">(</span><span class="token string">"AR Resources"</span><span class="token punctuation">,</span> <span class="token keyword">null</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+            <span class="token punctuation">{</span>
+                AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                DetectionImages <span class="token operator">=</span> images
+            <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>ViewController</code> constructor creates an instance of the <code>SceneViewDelegate</code> class and sets the instance as the <code>Delegate</code> property of the <code>ARSCNView</code>. In addition, the <code>ViewDidAppear</code> method is modified to retrieve the image to be detected from the asset catalog, and set it as the <code>DetectionImages</code> property of the <code>ARWorldTrackingConfiguration</code> object.</p>
+<p>The overall effect is that when the image is detected in the scene, a red rectangle is overlaid on it:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-m2dKRUYs_6w/YH6cGIVxaII/AAAAAAAADVs/1gOwE1Z3-nsUoJvcRozRa07tOtlPfbrEgCNcBGAsYHQ/s1136/IMG_1017.PNG" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" height="400" data-original-height="1136" data-original-width="640" src="https://1.bp.blogspot.com/-m2dKRUYs_6w/YH6cGIVxaII/AAAAAAAADVs/1gOwE1Z3-nsUoJvcRozRa07tOtlPfbrEgCNcBGAsYHQ/s400/IMG_1017.PNG"/></a></div>
+<p>Then, the red rectangle reorients itself in realtime if the orientation of the detected image in the scene changes:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-amVVdScmsg8/YH6cGAmXsoI/AAAAAAAADVw/UMP-yYGqL2U4jgcedX0dXYwymch6FNuzgCNcBGAsYHQ/s1136/IMG_1018.PNG" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" height="400" data-original-height="1136" data-original-width="640" src="https://1.bp.blogspot.com/-amVVdScmsg8/YH6cGAmXsoI/AAAAAAAADVw/UMP-yYGqL2U4jgcedX0dXYwymch6FNuzgCNcBGAsYHQ/s400/IMG_1018.PNG"/></a></div>
+<p>Once an object has been identified in a scene, it can be manipulated, and this will be what I explore in my next blog post.</p>
+

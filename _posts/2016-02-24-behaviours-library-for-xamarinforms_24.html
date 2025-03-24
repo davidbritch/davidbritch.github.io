@@ -1,0 +1,54 @@
+---
+layout: post
+title: Behaviours Library for Xamarin.Forms
+date: '2016-02-24T12:06:00.000Z'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2016-02-24T12:07:11.336Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-7447583889014188898
+blogger_orig_url: https://dbritch.blogspot.com/2016/02/behaviours-library-for-xamarinforms_24.html
+---
+
+<p>Back in January I wrote a series of blog posts for the <a href="http://blog.xamarin.com">Xamarin blog</a>. This included a post on <a href="https://blog.xamarin.com/turn-events-into-commands-with-behaviors/">Turning Events into Commands with Behaviors</a>. As part of that blog post I developed a <strong>ListViewSelectedItemBehavior</strong>, for executing a command when the <strong>ListView.ItemSelected</strong> event fires. Then at the end of the blog post I mentioned that I’d generalised the <strong>ListViewSelectedItemBehavior</strong> into an <strong>EventToCommandBehavior</strong> that could be used to execute a command in response to <em>any</em> event firing.</p> <p>This got me thinking about how I used to use behaviours when I was developing using Microsoft’s XAML. There, behaviours are attached to a control and listen for something to happen. This something would typically be an event firing or data changing. When the “something” happens, it triggers one or more Actions. Actions are invoked by Behaviours and execute on a selected control. Typical Actions included invoking a command, invoking a method, setting a property etc. These behaviours and actions were made available through the Blend SDK.</p> <p>I took my <strong>EventToCommandBehavior</strong> implementation and was able to refactor it into an <strong>EventHandlerBehavior</strong> and an <strong>InvokeCommandAction</strong>. This meant I was able to invoke multiple commands in response to an event firing, as demonstrated in the following code example:</p> <div id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:51dc4ef4-248a-4454-8375-2fb3545a4af3" class="wlWriterSmartContent" style="float: none; padding-bottom: 0px; padding-top: 0px; padding-left: 0px; margin: 0px; display: inline; padding-right: 0px"><pre style="overflow: hidden; height: 190px; width: 810px; background-color: white"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #0000ff">&lt;</span><span style="color: #800000">ListView </span><span style="color: #ff0000">ItemsSource</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding People}</span><span style="color: #0000ff">"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">ListView.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:EventHandlerBehavior </span><span style="color: #ff0000">EventName</span><span style="color: #0000ff">="ItemSelected"</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeCommandAction </span><span style="color: #ff0000">Command</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding ItemSelectedCommand}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                           Converter</span><span style="color: #0000ff">="</span><span style="color: #808000">{StaticResource SelectedItemConverter}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+            </span><span style="color: #0000ff">&lt;</span><span style="color: #800000">behaviors:InvokeCommandAction </span><span style="color: #ff0000">Command</span><span style="color: #0000ff">="</span><span style="color: #808000">{Binding OutputAgeCommand}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> 
+                                           Converter</span><span style="color: #0000ff">="</span><span style="color: #808000">{StaticResource SelectedItemConverter}</span><span style="color: #0000ff">"</span><span style="color: #ff0000"> </span><span style="color: #0000ff">/&gt;</span><span style="color: #000000">
+        </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">behaviors:EventHandlerBehavior</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+    </span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ListView.Behaviors</span><span style="color: #0000ff">&gt;</span><span style="color: #000000">
+</span><span style="color: #0000ff">&lt;/</span><span style="color: #800000">ListView</span><span style="color: #0000ff">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>I then started thinking about other Behaviours and Actions that I commonly used from the Blend SDK, and after realising how much I missed them in Xamarin.Forms, I decided to implement them. The result is my Behaviors for Xamarin.Forms library.</p>
+<h3>Introducing Behaviors for Xamarin.Forms</h3>
+<p>Behaviors for Xamarin.Forms is a PCL I’ve created that can be consumed by Xamarin.Forms applications. It contains the following Behaviours and Actions:</p>
+<p><strong>Behaviours</strong></p>
+<ul>
+<li><strong>EventHandlerBehavior</strong> – listens for a specified event to occur, and executes one or more Actions in response. 
+<li><strong>DataChangedBehavior</strong> – listens for the bound data to meet a specified condition, and executes one or more Actions in response.</li></ul>
+<p><strong>Actions</strong></p>
+<ul>
+<li><strong>InvokeCommandAction</strong> – executes a specified <strong>ICommand</strong> when invoked. 
+<li><strong>InvokeMethodAction</strong> – executes a method on a specified object when invoked. 
+<li><strong>SetPropertyAction</strong> – changes a specified property to a specified value.</li></ul>
+<p>Please note that the library is something I’ve created in my spare time, and isn’t an official Xamarin release. It’s open source, and is available on <a href="https://github.com/davidbritch/behaviors">GitHub</a>, and a NuGet package can be found <a href="https://www.nuget.org/packages/Behaviors.Forms/">here</a>. Note that the NuGet package has a dependency of &gt;= Xamarin.Forms 2.0.1.6505.</p>
+<h3>Scenarios</h3>
+<p>The library supports scenarios such as:</p>
+<ul>
+<li>Invoking commands when an event fires, or when data changes. 
+<li>Invoking methods (View or ViewModel) when an event fires, or when data changes. 
+<li>Setting properties (View or ViewModel) when an event fires, or when data changes.</li></ul>
+<p>For examples of these scenarios, see the accompanying <a href="https://github.com/davidbritch/behaviors">sample application</a> that executes Actions against Views and ViewModels.</p>
+<p>The result of using the library is that you can eliminate lots of boiler plate C# code, instead moving it to XAML.</p>
+<h3>Wrapping Up</h3>
+<p>Behaviors for Xamarin.Forms is a PCL library that can be used by Xamarin.Forms applications to eliminate lots of boiler plate C# code, instead moving it to XAML.</p>
+<p>Over the coming weeks I’ll publish blog posts that explore each Behaviour and Action, explaining how they work, and any limitations.</p>
+<p>Questions? Problems? Thoughts? Suggestions? Then <a href="https://twitter.com/britchdavid">drop me a line</a>.</p>

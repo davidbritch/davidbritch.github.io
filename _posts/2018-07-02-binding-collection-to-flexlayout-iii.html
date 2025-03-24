@@ -1,0 +1,84 @@
+---
+layout: post
+title: Binding a Collection to a FlexLayout III
+date: '2018-07-02T15:44:00.000+01:00'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2018-07-02T15:46:33.457+01:00'
+thumbnail: https://lh3.googleusercontent.com/-wJpg-oqgoVA/Wzo6yBMjR0I/AAAAAAAAC54/c7LagMvxms81tblQTt4e9J7GI2SKHqO_gCHMYCw/s72-c/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4337984918691451741
+blogger_orig_url: https://dbritch.blogspot.com/2018/07/binding-collection-to-flexlayout-iii.html
+---
+
+<p><a href="https://www.davidbritch.com/2018/06/binding-flexlayout-to-collection-ii.html" target="_blank">Previously</a>, I explained how to extend the <strong>ExtendedFlexLayout</strong> class so that it allows a <strong>DataTemplateSelector</strong> to choose a <strong>DataTemplate</strong> at runtime. This enables scenarios such as the <strong>ExtendedFlexLayout</strong> class binding to a collection of objects where the appearance of each object can be chosen at runtime by the data template selector returning a particular <strong>DataTemplate</strong>.</p> <p>Any items in the collection the <strong>ExtendedFlexLayout.ItemsSource</strong> property binds will be displayed on screen. However, if the collection changes at runtime, the changes aren’t displayed. It’s useful to think about how a collection can change at runtime - items could be added, moved, removed, or replaced. In addition, the collection could be cleared. </p> <p>In this blog post I’ll examine how to extend the <strong>ExtendedFlexLayout</strong> class so that it can bind to a collection that changes at runtime, by responding to collection change notifications, with the changes being reflected on screen. In this implementation, collection changes will only be reflected on screen when items are added to the collection, or removed from the collection.</p> <p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutObservableCollection" target="_blank">GitHub</a>.</p> <h3>Adding CollectionChanged Support</h3> <p>The key to responding to a bound collection changing at runtime is subscribing to the <strong>CollectionChanged</strong> event of the collection, and then updating the <strong>Children</strong> property of the <strong>ExtendedFlexLayout</strong> class in response. An event handler for the collection’s <strong>CollectionChanged</strong> event can be registered in the <strong>OnItemsSourceChanged</strong> method, which is executed whenever the <strong>ItemsSource</strong> property changes:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:b07993a3-cf12-4259-87a1-1a50c4548020" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 356px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 128, 128);"> 1</span> <span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnItemsSourceChanged(BindableObject bindable, </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> oldVal, </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> newVal)
+</span><span style="color: rgb(0, 128, 128);"> 2</span> <span style="color: rgb(0, 0, 0);">{
+</span><span style="color: rgb(0, 128, 128);"> 3</span> <span style="color: rgb(0, 0, 0);">    IEnumerable newValue </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> newVal </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> IEnumerable;
+</span><span style="color: rgb(0, 128, 128);"> 4</span> <span style="color: rgb(0, 0, 0);">    var layout </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> (ExtendedFlexLayout)bindable;
+</span><span style="color: rgb(0, 128, 128);"> 5</span> <span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 128, 128);"> 6</span> <span style="color: rgb(0, 0, 0);">    var observableCollection </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> newValue </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> INotifyCollectionChanged;
+</span><span style="color: rgb(0, 128, 128);"> 7</span> <span style="color: rgb(0, 0, 0);">    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (observableCollection </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+</span><span style="color: rgb(0, 128, 128);"> 8</span> <span style="color: rgb(0, 0, 0);">    {
+</span><span style="color: rgb(0, 128, 128);"> 9</span> <span style="color: rgb(0, 0, 0);">        observableCollection.CollectionChanged </span><span style="color: rgb(0, 0, 0);">+=</span><span style="color: rgb(0, 0, 0);"> layout.OnItemsSourceCollectionChanged;
+</span><span style="color: rgb(0, 128, 128);">10</span> <span style="color: rgb(0, 0, 0);">    }
+</span><span style="color: rgb(0, 128, 128);">11</span> <span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 128, 128);">12</span> <span style="color: rgb(0, 0, 0);">    layout.Children.Clear();
+</span><span style="color: rgb(0, 128, 128);">13</span> <span style="color: rgb(0, 0, 0);">    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (newValue </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+</span><span style="color: rgb(0, 128, 128);">14</span> <span style="color: rgb(0, 0, 0);">    {
+</span><span style="color: rgb(0, 128, 128);">15</span> <span style="color: rgb(0, 0, 0);">        </span><span style="color: rgb(0, 0, 255);">foreach</span><span style="color: rgb(0, 0, 0);"> (var item </span><span style="color: rgb(0, 0, 255);">in</span><span style="color: rgb(0, 0, 0);"> newValue)
+</span><span style="color: rgb(0, 128, 128);">16</span> <span style="color: rgb(0, 0, 0);">        {
+</span><span style="color: rgb(0, 128, 128);">17</span> <span style="color: rgb(0, 0, 0);">            layout.Children.Add(layout.CreateChildView(item));
+</span><span style="color: rgb(0, 128, 128);">18</span> <span style="color: rgb(0, 0, 0);">        }
+</span><span style="color: rgb(0, 128, 128);">19</span> <span style="color: rgb(0, 0, 0);">    }
+</span><span style="color: rgb(0, 128, 128);">20</span> <span style="color: rgb(0, 0, 0);">}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Lines 6-10 contain the new code that’s been added to this method. This code casts the bound collection to <strong>INotifyCollectionChanged</strong>, and then registers an event handler for the <strong>CollectionChanged</strong> even. This event fires whenever an item is added, removed, changed, or moved in the bound collection, or when the collection is cleared. Other than that, the code in the method hasn’t changed.</p>
+<p>The <strong>OnItemsSourceCollectionChanged</strong> method, which handles the <strong>CollectionChanged</strong> event, is shown in the following example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:7ba69172-ae74-45ea-b6a0-27818d09b796" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 347px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnItemsSourceCollectionChanged(</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> sender, NotifyCollectionChangedEventArgs e)
+{
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (e.OldItems </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Item(s) replaced, moved, or removed - only remove processed here.</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        Children.RemoveAt(e.OldStartingIndex);
+    }
+
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (e.NewItems </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+    {
+        </span><span style="color: rgb(0, 128, 0);">//</span><span style="color: rgb(0, 128, 0);"> Item(s) added.</span><span style="color: rgb(0, 128, 0);">
+</span><span style="color: rgb(0, 0, 0);">        </span><span style="color: rgb(0, 0, 255);">for</span><span style="color: rgb(0, 0, 0);"> (</span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> i </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">; i </span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);"> e.NewItems.Count; i</span><span style="color: rgb(0, 0, 0);">++</span><span style="color: rgb(0, 0, 0);">)
+        {
+            var item </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> e.NewItems[i];
+            var view </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> CreateChildView(item);
+            Children.Insert(e.NewStartingIndex </span><span style="color: rgb(0, 0, 0);">+</span><span style="color: rgb(0, 0, 0);"> i, view);
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This event handler uses the received <strong>NotifyCollectionChangedEventArgs</strong> argument to determine the action to perform. The event argument data includes an <strong>Action</strong> property, which identifies whether an item has been added, moved, removed, replaced, or whether the collection has been cleared. However, it’s not always necessary to use this property to handle the collection changing. Instead, the <strong>OldItems</strong> and <strong>NewItems</strong> properties can be examined to partly determine the action required.</p>
+<p>The <strong>OldItems</strong> property contains the list of items that have been replaced, removed, or moved within the collection, and the <strong>OldStartingIndex</strong> property returns the index at which the replace, remove, or move action took place. The <strong>NewItems</strong> property contains a list of items added to the collection, with the <strong>NewStartingIndex</strong> property returning the index at which the change occurred. </p>
+<p>In the code above, if the <strong>OldItems</strong> property contains an item, it’s removed from the <strong>ExtendedFlexLayout.</strong><strong>Children</strong> collection. If the <strong>NewItems</strong> property contains items, they are added to the <strong>ExtendedFlexLayout.Children</strong> collection. This is achieved by calling the <strong>CreateChildView</strong> method, which loads the <strong>DataTemplate</strong> and sets its binding context, with the resulting view being inserted into the <strong>Children</strong> collection.</p>
+<p>Therefore, the <strong>ExtendedFlexLayout</strong> class only handles items being added to and removed from the bound collection at runtime (and not items being moved, replaced, or the collection being cleared), but it can easily be extended to handle additional actions by examining the <strong>Action</strong> property. In fact, I will return to this property in my next post.</p>
+<h3>Consuming the ExtendedFlexLayout</h3>
+<p>The <strong>ExtendedFlexLayout</strong> is consumed exactly as before:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:500cf640-573b-4521-8907-8666ebbe1635" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 47px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">local:ExtendedFlexLayout </span><span style="color: rgb(255, 0, 0);">ItemsSource</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding Monkeys}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> 
+                          ItemTemplate</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource monkeyDataTemplateSelector}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>However, the <strong>ItemsSource</strong> property now binds to an <strong>ObservableCollection</strong>. When the <strong>MainPageViewModel</strong> is constructed, an instance of the <strong>ObservableCollection</strong> is created and a single <strong>Monkey</strong> is added to it. The <strong>ObservableCollection</strong> can then be manipulated by buttons on the UI (adding and removing <strong>Monkey</strong>s from the collection), with the <strong>ExtendedFlexLayout</strong> being updated in response:</p>
+<p><br></p>
+<p><img width="274" height="484" title="Simulator Screen Shot - iPhone 8 - 2018-06-22 at 13.56.07" style="border-width: 0px; padding-top: 0px; padding-right: 0px; padding-left: 0px; margin-right: auto; margin-left: auto; float: none; display: block; background-image: none;" alt="Simulator Screen Shot - iPhone 8 - 2018-06-22 at 13.56.07" src="https://lh3.googleusercontent.com/-wJpg-oqgoVA/Wzo6yBMjR0I/AAAAAAAAC54/c7LagMvxms81tblQTt4e9J7GI2SKHqO_gCHMYCw/Simulator-Screen-Shot---iPhone-8---2%255B1%255D?imgmax=800" border="0"></p>
+<h3>Summary</h3>
+<p>This blog post has explained how to further extend the <strong>ExtendedFlexLayout</strong> class so that it can bind to collections that change at runtime, with the changes being reflected on screen. While the <strong>ExtendedFlexLayout</strong> class only handles items being added to and removed from the bound collection at runtime (and not items being moved, replaced, or the collection being emptied), it can easily be extended to handle additional actions by examining the <strong>Action</strong> property.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ExtendedFlexLayoutObservableCollection" target="_blank">GitHub</a>.</p>

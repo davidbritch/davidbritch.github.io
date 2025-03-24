@@ -1,0 +1,108 @@
+---
+layout: post
+title: Adventures in ARKit - overlay an image
+date: '2021-03-16T10:13:00.004Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-16T10:14:07.741Z'
+thumbnail: https://1.bp.blogspot.com/-jj6kW8i_koY/YEuVo0oaQHI/AAAAAAAADTk/6HQ5XLIUINISDiV552q2BfkFv1xLABBhgCNcBGAsYHQ/s72-c/IMG_0982.PNG
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4108012163388486515
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-overlay-image.html
+---
+
+<p>In my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-platform-setup.html">previous blog post</a> I discussed how to create a basic ARKit app on Xamarin.iOS, that displays the camera output. In this blog post I’ll take the first steps into augmenting the experience by overlaying an image on the camera output.</p>
+<p>Before I got to grips with overlaying images, I first overlayed basic geometric shapes - spheres, cones, cylinders etc. There’s nothing I want to call out about doing that. However, my experimentation can be found in a <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/02%20-%20ARKitFun%20-%20Shapes">sample</a>. For info on how it works, you could <a href="https://twitter.com/LeeEnglestone/status/1367545426329616393">buy the book</a> .</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/03%20-%20ARKitFun%20-%20Images">GitHub</a>.</p>
+<h2 id="overlay-an-image">Overlay an image</h2>
+<p>Objects that you overlay on the camera output are called <em>nodes</em>. By default, nodes don’t have a shape. Instead, you give them a geometry (shape) and apply materials to the geometry to provide a visual appearance. Nodes are represented by the SceneKit <code>SCNNode</code> type.</p>
+<p>One of the geometries provided by SceneKit is <code>SCNPlane</code>, which represents a square or rectangle. This type essentially acts as a surface on which to place other objects.</p>
+<p>In my sample app, I defined a <code>ImageNode</code> type, that derives from <code>SCNNode</code>, which can be re-used when overlaying an image onto a scene:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> Foundation<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun<span class="token punctuation">.</span>Nodes
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">ImageNode</span> <span class="token punctuation">:</span> SCNNode
+    <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token function">ImageNode</span><span class="token punctuation">(</span><span class="token keyword">string</span> image<span class="token punctuation">,</span> <span class="token keyword">float</span> width<span class="token punctuation">,</span> <span class="token keyword">float</span> height<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            SCNNode node <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNNode</span>
+            <span class="token punctuation">{</span>
+                Geometry <span class="token operator">=</span> <span class="token function">CreateGeometry</span><span class="token punctuation">(</span>image<span class="token punctuation">,</span> width<span class="token punctuation">,</span> height<span class="token punctuation">)</span>
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+            <span class="token function">AddChildNode</span><span class="token punctuation">(</span>node<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        SCNGeometry <span class="token function">CreateGeometry</span><span class="token punctuation">(</span><span class="token keyword">string</span> resource<span class="token punctuation">,</span> <span class="token keyword">float</span> width<span class="token punctuation">,</span> <span class="token keyword">float</span> height<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            UIImage image<span class="token punctuation">;</span>
+
+            <span class="token keyword">if</span> <span class="token punctuation">(</span>resource<span class="token punctuation">.</span><span class="token function">StartsWith</span><span class="token punctuation">(</span><span class="token string">"http"</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+                image <span class="token operator">=</span> <span class="token function">FromUrl</span><span class="token punctuation">(</span>resource<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token keyword">else</span>
+                image <span class="token operator">=</span> UIImage<span class="token punctuation">.</span><span class="token function">FromFile</span><span class="token punctuation">(</span>resource<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            SCNMaterial material <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNMaterial</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>Diffuse<span class="token punctuation">.</span>Contents <span class="token operator">=</span> image<span class="token punctuation">;</span>
+            material<span class="token punctuation">.</span>DoubleSided <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">;</span> <span class="token comment">// Ensure geometry viewable from all angles</span>
+
+            SCNPlane geometry <span class="token operator">=</span> SCNPlane<span class="token punctuation">.</span><span class="token function">Create</span><span class="token punctuation">(</span>width<span class="token punctuation">,</span> height<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            geometry<span class="token punctuation">.</span>Materials <span class="token operator">=</span> <span class="token keyword">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> material <span class="token punctuation">}</span><span class="token punctuation">;</span>
+            <span class="token keyword">return</span> geometry<span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        UIImage <span class="token function">FromUrl</span><span class="token punctuation">(</span><span class="token keyword">string</span> url<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">using</span> <span class="token punctuation">(</span>NSUrl nsUrl <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">NSUrl</span><span class="token punctuation">(</span>url<span class="token punctuation">)</span><span class="token punctuation">)</span>
+            <span class="token keyword">using</span> <span class="token punctuation">(</span>NSData imageData <span class="token operator">=</span> NSData<span class="token punctuation">.</span><span class="token function">FromUrl</span><span class="token punctuation">(</span>nsUrl<span class="token punctuation">)</span><span class="token punctuation">)</span>
+                <span class="token keyword">return</span> UIImage<span class="token punctuation">.</span><span class="token function">LoadFromData</span><span class="token punctuation">(</span>imageData<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The <code>ImageNode</code> constructor takes a <code>string</code> argument that represents the filename or URI of an image, and <code>float</code> arguments that represent the width and height of the image in the scene. The constructor creates a <code>SCNNode</code>, assigns a geometry to its <code>Geometry</code> property, and adds the node as a child node to the <code>SCNNode</code>.</p>
+<p>The <code>CreateGeometry</code> method creates a <code>UIImage</code> object that represents the local or remote image, and creates a <code>SCNMaterial</code> object that represents the image. Then, a <code>SCNPlane</code> object is created, of size width x height, and the the <code>SCNMaterial</code> object is assigned to the geometry. Therefore, the shape of the node is defined by the <code>SCNPlane</code> object of width x height, and the material (the image) defines the visual appearance of the node.</p>
+<p>The code from my <a href="https://www.davidbritch.com/2021/03/adventures-in-arkit-platform-setup.html">previous blog post</a> can be modified to overlay an image on the camera output. This is accomplished by modifying the <code>ViewDidAppear</code> method in the <code>ViewController</code> class:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKitFun<span class="token punctuation">.</span>Nodes<span class="token punctuation">;</span>
+<span class="token keyword">using</span> SceneKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+		<span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+            <span class="token punctuation">{</span>
+                AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                PlaneDetection <span class="token operator">=</span> ARPlaneDetection<span class="token punctuation">.</span>Horizontal<span class="token punctuation">,</span>
+                WorldAlignment <span class="token operator">=</span> ARWorldAlignment<span class="token punctuation">.</span>Gravity
+            <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            ImageNode imageNode <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ImageNode</span><span class="token punctuation">(</span><span class="token string">"Xamagon.png"</span><span class="token punctuation">,</span> <span class="token number">0.1f</span><span class="token punctuation">,</span> <span class="token number">0.1f</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            imageNode<span class="token punctuation">.</span>Position <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">SCNVector3</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token operator">-</span><span class="token number">0.25f</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// X,Y,Z</span>
+
+            sceneView<span class="token punctuation">.</span>Scene<span class="token punctuation">.</span>RootNode<span class="token punctuation">.</span><span class="token function">AddChildNode</span><span class="token punctuation">(</span>imageNode<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>When the session for the <code>ARSCNView</code> runs, it automatically sets the camera to be the background of the view. In addition, the initial device location is registered as the <em>world origin</em> (X=0, Y=0, Z=0). Any objects you place in the scene will be relative to the world origin.</p>
+<p>If you don’t specify the position of a node within a scene, it will by default be placed at the world origin (0,0,0). However, a node can be positioned in 3D space by setting the <code>Position</code> property of the <code>SCNNode</code> to a <code>SCNVector3</code> object that defines the X,Y,Z coordinates of the node. The values of X,Y,Z are floats where 1f = 1m, 0.1f = 10cm, and 0.01f = 1cm.</p>
+<p>In the example, an <code>ImageNode</code> is then created for a local file, that’s included in the project, of dimensions 10cm x 10cm. The <code>ImageNode</code> is placed at the world origin (0,0) for the X and Y coordinates, and 25cm forwards on the Z-axis. <code>ImageNode</code> is then added to the scene by the <code>AddChildNode</code> method call.</p>
+<p>The overall effect is that the Xamagon is placed in the scene at the specified coordinates:</p>
+<div class="separator" style="clear: both;"><a href="https://1.bp.blogspot.com/-jj6kW8i_koY/YEuVo0oaQHI/AAAAAAAADTk/6HQ5XLIUINISDiV552q2BfkFv1xLABBhgCNcBGAsYHQ/s1136/IMG_0982.PNG" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" height="320" data-original-height="1136" data-original-width="640" src="https://1.bp.blogspot.com/-jj6kW8i_koY/YEuVo0oaQHI/AAAAAAAADTk/6HQ5XLIUINISDiV552q2BfkFv1xLABBhgCNcBGAsYHQ/s320/IMG_0982.PNG"/></a></div>
+<p>Note that the image contains transparency, and so blends well in the scene.</p>
+<p>In my next blog post I’ll discuss interacting with the image in the scene.</p>
+

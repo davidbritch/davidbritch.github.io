@@ -1,0 +1,37 @@
+---
+layout: post
+title: Process navigation data using IQueryAttributable in Xamarin.Forms Shell apps
+date: '2021-03-09T14:58:00.000Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-09T14:58:30.711Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5757685346432074934
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/process-navigation-data-using.html
+---
+
+<p>I recently discovered, courtesy of <a href="https://twitter.com/pureween">@PureWeen</a>, another mechanism for receiving navigation data in Xamarin.Forms Shell apps.</p><p>If you write Shell apps, you’ll know that the mechanism for passing data between pages is to pass it as query parameters using URI-based navigation. Then, in your receiving class (be it a page, or a view model), you decorate the class with a <strong>QueryPropertyAttribute</strong> for each query parameter. This works quite well, but it can be a pain having to add a <strong>QueryPropertyAttribute</strong> for each item of data that gets passed. In addition, because each <strong>QueryPropertyAttribute</strong> sets a property, you can end up with multiple pieces of plumbing code just to receive data.</p><p>So what’s the solution? Enter the oddly named <strong>IQueryAttributable</strong> interface.</p><h3>Process navigation data using a single method</h3><p><strong>IQueryAttributable</strong> is a Xamarin.Forms interface that specifies that an implementing class must implement a method named <strong>ApplyQueryAttributes</strong>. This method has a <strong>query</strong> argument, of type <strong>IDictionary&lt;string, string&gt;</strong>, that contains any data passed during navigation. Each key in the dictionary is a query parameter id, with its value being the query parameter value.</p><p>For example, the following code shows a view model class that implements <strong>IQueryAttributable</strong>:</p>
+<pre><code class="cs">public class MyViewModel : IQueryAttributable
+{
+    public void ApplyQueryAttributes(IDictionary<string, string> query)
+    {
+        // The query parameter requires URL decoding.
+        string name = HttpUtility.UrlDecode(query["name"]);
+        ...
+    }
+    ...
+}</code></pre>
+<p>In this example, the <strong>ApplyQueryAttributes</strong> method retrieves the value of the <strong>name</strong> query parameter from the URI in the <strong>GoToAsync</strong> method call. Then, whatever custom logic is desired can be executed. Note that query parameter values that are received via the <strong>IQueryAttributable</strong> interface aren’t automatically URL decoded.</p><p>It’s also possible to process multiple items of navigation data:</p>
+<pre><code class="cs">public class MyViewModel : IQueryAttributable
+{
+    public void ApplyQueryAttributes(IDictionary<string, string> query)
+    {
+        // The query parameters require URL decoding.
+        string name = HttpUtility.UrlDecode(query["name"]);
+        string location = HttpUtility.UrlDecode(query["location"]);
+        ...
+    }
+    ...
+}</code></pre>
+<p>In this example, the <strong>ApplyQueryAttributes</strong> method retrieves the value of the <strong>name</strong> and <strong>location</strong> query parameters from the URI in the <strong>GoToAsync</strong> method call.</p><p>The advantage of using this approach is that navigation data can be processed using a single method, which can be useful when you have multiple items of navigation data that require processing as a whole. Compare that against the <strong>QueryPropertyAttribute</strong> approach, with multiple properties per item of data, and it’s a no brainer which is more elegant.</p><p>Want to know more about Shell navigation? Then see <a href="https://docs.microsoft.com/xamarin/xamarin-forms/app-fundamentals/shell/navigation">Xamarin.Forms Shell navigation</a>.</p>

@@ -1,0 +1,80 @@
+---
+layout: post
+title: Adventures in ARKit - platform setup
+date: '2021-03-15T10:23:00.003Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2021-03-15T10:24:14.903Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3247896638538299121
+blogger_orig_url: https://dbritch.blogspot.com/2021/03/adventures-in-arkit-platform-setup.html
+---
+
+<p><a href="http://www.manchesterdeveloper.com">Lee Englestone</a> has recently written a <a href="https://www.amazon.co.uk/NET-Developers-Guide-Augmented-Reality/dp/1484267699/ref=sr_1_1?dchild=1&amp;keywords=lee+englestone&amp;qid=1615803303&amp;sr=8-1">book</a> about developing augmented reality apps using ARKit on Xamarin.iOS. It piqued my interest so I bought it. His book appears to be the best source of information for learning ARKit on Xamarin.iOS, and he was a <a href="https://www.xamarinarkit.com">companion website</a> that’s pretty damn good.</p>
+<p>After experimenting with ARKit, I’ve already forgotten some of the early lessons I learnt. So, as a reminder to my future self, I’ve decided to blog about getting to grips with ARKit.</p>
+<p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/ARKit/01%20-%20ARKitFun%20-%20Setup">GitHub</a>.</p>
+<h2 id="platform-setup">Platform setup</h2>
+<p>The first thing to note is that you’ll need a physical iPhone to run an ARKit app. ARKit requires the use of the camera, and you won’t have much joy with that in the iOS Simulator.</p>
+<p>Deploying an ARKit app to your iPhone will require an Apple ID, and optionally an Apple Developer account. However, I created a new Apple ID that I didn’t link to an Apple Developer account. This made it possible to use free provisioning in VSMac to deploy the app to my device, without having to register for on the Apple Developer program.</p>
+<p>The most convenient approach to learning ARKit is via a Single View app. Once you’ve created the app you’ll need to give the app permission to use the device camera, in <strong>Info.plist</strong>:</p>
+<pre class=" language-xml"><code class="prism  language-xml">	<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>key</span><span class="token punctuation">&gt;</span></span>NSCameraUsageDescription<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>key</span><span class="token punctuation">&gt;</span></span>
+	<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>string</span><span class="token punctuation">&gt;</span></span>Use camera?<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>string</span><span class="token punctuation">&gt;</span></span>
+</code></pre>
+<p>To check you can deploy an app to your phone, it’s useful to create an ARKit app that displays the camera output. This can be accomplished by modifying the <code>ViewController</code> class in your single view app:</p>
+<pre class=" language-csharp"><code class="prism  language-csharp"><span class="token keyword">using</span> System<span class="token punctuation">;</span>
+<span class="token keyword">using</span> ARKit<span class="token punctuation">;</span>
+<span class="token keyword">using</span> UIKit<span class="token punctuation">;</span>
+
+<span class="token keyword">namespace</span> ARKitFun
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">partial</span> <span class="token keyword">class</span> <span class="token class-name">ViewController</span> <span class="token punctuation">:</span> UIViewController
+    <span class="token punctuation">{</span>
+        <span class="token keyword">readonly</span> ARSCNView sceneView<span class="token punctuation">;</span>
+
+        <span class="token keyword">public</span> <span class="token function">ViewController</span><span class="token punctuation">(</span>IntPtr handle<span class="token punctuation">)</span> <span class="token punctuation">:</span> <span class="token keyword">base</span><span class="token punctuation">(</span>handle<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            sceneView <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ARSCNView</span>
+            <span class="token punctuation">{</span>
+                AutoenablesDefaultLighting <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                ShowsStatistics <span class="token operator">=</span> <span class="token keyword">true</span>
+            <span class="token punctuation">}</span><span class="token punctuation">;</span>
+            View<span class="token punctuation">.</span><span class="token function">AddSubview</span><span class="token punctuation">(</span>sceneView<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidLoad</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidLoad</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span>Frame <span class="token operator">=</span> View<span class="token punctuation">.</span>Frame<span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidAppear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidAppear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword">new</span> <span class="token class-name">ARWorldTrackingConfiguration</span>
+            <span class="token punctuation">{</span>
+                AutoFocusEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                LightEstimationEnabled <span class="token operator">=</span> <span class="token keyword">true</span><span class="token punctuation">,</span>
+                WorldAlignment <span class="token operator">=</span> ARWorldAlignment<span class="token punctuation">.</span>Gravity
+            <span class="token punctuation">}</span><span class="token punctuation">,</span> ARSessionRunOptions<span class="token punctuation">.</span>ResetTracking <span class="token operator">|</span> ARSessionRunOptions<span class="token punctuation">.</span>RemoveExistingAnchors<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">ViewDidDisappear</span><span class="token punctuation">(</span><span class="token keyword">bool</span> animated<span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">ViewDidDisappear</span><span class="token punctuation">(</span>animated<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            sceneView<span class="token punctuation">.</span>Session<span class="token punctuation">.</span><span class="token function">Pause</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">public</span> <span class="token keyword">override</span> <span class="token keyword">void</span> <span class="token function">DidReceiveMemoryWarning</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">DidReceiveMemoryWarning</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The core type being used here is  <code>ARSCNView</code>, which stands for Augmented Reality Scene View. When the session for the <code>ARSCNView</code> runs, it automatically sets the camera to be the background of the view.</p>
+<p>When you first attempt to run your app you’ll have to instruct your device to trust apps from you, the “untrusted” developer. You can do this in the device settings at <strong>General &gt; Device Management &gt; Trust developer</strong>.</p>
+<p>When the app starts, the initial device location is registered as the <em>world origin</em> (X=0, Y=0, Z=0). Any objects you place in the scene will be relative to the world origin.</p>
+<p>In my next blog post I’ll discuss overlaying an image onto the scene.</p>
+

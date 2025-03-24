@@ -1,0 +1,44 @@
+---
+layout: post
+title: Xamarin.Forms 2.5 and Local Context in Android Custom Renderers
+date: '2017-11-29T16:21:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-11-29T16:23:25.308Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-5728753063104810289
+blogger_orig_url: https://dbritch.blogspot.com/2017/11/xamarinforms-25-and-local-context-in.html
+---
+
+<p>If you’ve updated any of your solutions to use Xamarin.Forms 2.5, you may have noticed compiler warnings that say “Context is obsolete as of version 2.5. Please use a local context instead”. This warning typically occurs on Android custom renderers, and any references to <strong>Xamarin.Forms.Forms.Context</strong>.</p>
+<p>The warning occurs on Android custom renderers because the parameterless constructors have been marked obsolete. This change was made to support native embedding in Android apps that use multiple activities. Instead, the custom renderer base classes now have constructors that take a <strong>Android.Content.Context</strong> argument. In addition, <strong>Xamarin.Forms.Forms.Context</strong> has been marked obsolete because it was a global static reference to an <strong>Activity</strong>, which is not ideal.</p>
+<p>Custom renderer implementations in applications can be fixed by adding a constructor that takes a <strong>Android.Content.Context</strong> argument and passing it to the base class constructor, as shown in the following code example:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:11cb2f6f-b6f7-45eb-9953-dfebedf0df0a" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 372px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">[assembly: ExportRenderer(</span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(MyEntry), </span><span style="color: rgb(0, 0, 255);">typeof</span><span style="color: rgb(0, 0, 0);">(MyEntryRenderer))]
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> CustomRenderer.Android
+{
+    </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> MyEntryRenderer : EntryRenderer
+    {
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> MyEntryRenderer(Context context) : </span><span style="color: rgb(0, 0, 255);">base</span><span style="color: rgb(0, 0, 0);">(context)
+        {
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">protected</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">override</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnElementChanged(ElementChangedEventArgs</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">Entry</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> e)
+        {
+            </span><span style="color: rgb(0, 0, 255);">base</span><span style="color: rgb(0, 0, 0);">.OnElementChanged(e);
+
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (Control </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+            {
+                Control.SetBackgroundColor(</span><span style="color: rgb(0, 0, 255);">global</span><span style="color: rgb(0, 0, 0);">::Android.Graphics.Color.LightGreen);
+            }
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Technically the constructor isn’t required (unless you’re using native embedding in an Android app that has multiple activities) – the backwards compatibility built into Xamarin.Forms will take care of it. However, adding the constructor will eliminate the compiler warning, and produce some peace of mind.</p>
+<p>If your custom renderer accesses <strong>Xamarin.Forms.Forms.Context</strong>, you should most likely just be using the view’s context, which is passed into the custom renderer constructor.</p>

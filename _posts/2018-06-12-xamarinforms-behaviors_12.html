@@ -1,0 +1,74 @@
+---
+layout: post
+title: 'Xamarin.Forms Behaviors: InvokeCommandAction and ConverterParameter'
+date: '2018-06-12T10:32:00.000+01:00'
+author: David Britch
+tags:
+- behaviour
+- C#
+- Xamarin
+modified_time: '2018-06-12T10:33:34.630+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-2116620313395305433
+blogger_orig_url: https://dbritch.blogspot.com/2018/06/xamarinforms-behaviors_12.html
+---
+
+<p>I <a href="https://www.davidbritch.com/2018/05/behaviours-library-14.html" target="_blank">previously</a> mentioned that I’d published v1.4 of my Behaviors library, and that it included some new functionality. In my <a href="https://www.davidbritch.com/2018/06/xamarinforms-behaviors.html" target="_blank">last blog post</a> I looked at the <strong>SourceObject</strong> property that’s now present on the <strong>EventHandlerBehavior</strong> class. The final new item is the <strong>ConverterParameter</strong> property that now exists on the <strong>InvokeCommandAction</strong> class.</p> <p>The <strong>InvokeCommandAction</strong> class executes a specified <strong>ICommand</strong> when invoked. It requires you to set a <strong>Command</strong> property to an <strong>ICommand</strong> instance, and <strong>CommandParameter</strong> and <strong>Converter</strong> properties can be optionally set. The <strong>CommandParameter</strong> property should be set to an <strong>object</strong> instance, with the <strong>Converter</strong> property being set to an instance of a class that implements <strong>IValueConverter</strong>. The <strong>ICommand</strong> specified in the <strong>Command</strong> property will then be executed when the “something” the parent behavior listens for occurs, with the <strong>CommandParameter</strong> and <strong>Converter</strong> values being used if specified.</p> <h3>Introducing the ConverterParameter Property</h3> <p>In v1.4 of the Behaviors library, the <strong>InvokeCommandAction</strong> class also has an optional <strong>ConverterParameter</strong> property, of type <strong>object</strong>. When this property is set, its value is passed to the <strong>Convert</strong> and <strong>ConvertBack</strong> methods of the <strong>IValueConverter</strong> implementation, as the <strong>parameter</strong> argument.</p> <p>The following XAML shows an example of the <strong>InvokeCommandAction</strong> passing a parameter to the converter:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:f6d8b3e9-2661-4a70-9dbf-7a8680f8089e" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 160px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ListView </span><span style="color: rgb(255, 0, 0);">x:Name</span><span style="color: rgb(0, 0, 255);">="listView"</span><span style="color: rgb(255, 0, 0);"> ItemsSource</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding People}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">ListView.Behaviors</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">behaviors:EventHandlerBehavior </span><span style="color: rgb(255, 0, 0);">EventName</span><span style="color: rgb(0, 0, 255);">="ItemSelected"</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+            </span><span style="color: rgb(0, 0, 255);">&lt;</span><span style="color: rgb(128, 0, 0);">behaviors:InvokeCommandAction </span><span style="color: rgb(255, 0, 0);">Command</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{Binding OutputAgeCommand}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> 
+                                           Converter</span><span style="color: rgb(0, 0, 255);">="</span><span style="color: rgb(128, 128, 0);">{StaticResource SelectedItemConverter}</span><span style="color: rgb(0, 0, 255);">"</span><span style="color: rgb(255, 0, 0);"> 
+                                           ConverterParameter</span><span style="color: rgb(0, 0, 255);">="35"</span><span style="color: rgb(255, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">/&gt;</span><span style="color: rgb(0, 0, 0);">
+        </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">behaviors:EventHandlerBehavior</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+    </span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">ListView.Behaviors</span><span style="color: rgb(0, 0, 255);">&gt;</span><span style="color: rgb(0, 0, 0);">
+</span><span style="color: rgb(0, 0, 255);">&lt;/</span><span style="color: rgb(128, 0, 0);">ListView</span><span style="color: rgb(0, 0, 255);">&gt;</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>When the <strong>ListView.ItemSelected</strong> event fires, the <strong>OutputAgeCommand</strong> is executed. The <strong>InvokeCommandAction</strong> class expects to find the <strong>ICommand</strong> on the <strong>BindingContext</strong> of the attached object (and the <strong>BindingContext</strong> may have been set by a parent element). The <strong>Converter</strong> property of the <strong>InvokeCommandAction</strong> instance is set to the <strong>SelectedItemConverter</strong> instance, and the value of the <strong>ConverterParameter</strong> property is passed to the <strong>SelectedItemConverter</strong> instance as the <strong>parameter</strong> argument:</p>
+<p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:d2d88fd0-a7e2-48c8-91e2-8fa2f2cb956b" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 288px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> SelectedItemEventArgsToSelectedItemConverter : IValueConverter
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> Convert (</span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> value, Type targetType, </span><span style="color: rgb(0, 0, 255);">object</span><span style="color: rgb(0, 0, 0);"> parameter, CultureInfo culture)
+    {
+        var eventArgs </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> value </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> SelectedItemChangedEventArgs;
+        var person </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> eventArgs.SelectedItem </span><span style="color: rgb(0, 0, 255);">as</span><span style="color: rgb(0, 0, 0);"> Person;
+
+        </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (parameter </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+        {
+            </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);"> ageParam </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">int</span><span style="color: rgb(0, 0, 0);">.Parse(parameter.ToString());
+            person </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> Person(person.Name, person.Age, ageParam);          
+        }
+        </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> person;
+    }
+    ...
+}
+</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>The converter returns the <strong>SelectedItem</strong> of the <strong>ListView</strong> from the <strong>SelectedItemChangedEventArgs</strong>. If the <strong>parameter</strong> argument contains data, it’s converted to an <strong>int</strong> and a new <strong>Person</strong> object is constructed that contains the <strong>int</strong> value of <strong>parameter</strong>. The <strong>InvokeCommandDemoPageViewModel</strong> then uses the <strong>Person</strong> object to update the <strong>AgeText</strong> property (which the UI binds to) to a message to be output:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:ed58ec1a-2225-4153-a03d-f7a2f98279fe" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 186px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OutputAge (Person person)
+{
+    </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (person.AgeParameter </span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);"> person.Age)
+        AgeText </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Format(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">{0} is {1}. That's younger than {2}.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">, 
+                    person.Name, person.Age, person.AgeParameter);
+    </span><span style="color: rgb(0, 0, 255);">else</span><span style="color: rgb(0, 0, 0);">
+        AgeText </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Format(</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">{0} is {1}. That's older than {2}.</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">,
+                    person.Name, person.Age, person.AgeParameter);
+    OnPropertyChanged (</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(128, 0, 0);">AgeText</span><span style="color: rgb(128, 0, 0);">"</span><span style="color: rgb(0, 0, 0);">);
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>While this is a contrived example, it does illustrate how the <strong>ConverterParameter</strong> property can be used to pass a parameter to the value converter, that can be used in the conversion process.</p>
+<p>Note that even if the instance of the value converter is shared among several data bindings, the <strong>ConverterParameter</strong> property can be different to perform different conversions.</p>
+<h3>Summary</h3>
+
+<p>In v1.4 of the Behaviors library, the <strong>InvokeCommandAction</strong> class also has an optional <strong>ConverterParameter</strong> property, of type <strong>object</strong>. When this property is set, its value is passed to the <strong>Convert</strong> and <strong>ConvertBack</strong> methods of the <strong>IValueConverter</strong> implementation, as the <strong>parameter</strong> argument.</p>
+<p>The sample application that this code comes from can be downloaded from <a href="https://github.com/davidbritch/behaviors" target="_blank">GitHub</a>, and the Behaviors library can be found on <a href="https://www.nuget.org/packages/Behaviors.Forms/" target="_blank">NuGet</a>.</p>

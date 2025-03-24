@@ -1,0 +1,79 @@
+---
+layout: post
+title: Behaviors library for .NET MAUI
+date: '2022-08-01T14:16:00.002+01:00'
+author: David Britch
+tags:
+- ".NET MAUI"
+modified_time: '2022-08-01T14:18:54.595+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-1122461172236641855
+blogger_orig_url: https://dbritch.blogspot.com/2022/07/behaviors-library-for-net-maui.html
+---
+
+<p>Many years ago I wrote a behaviours library for Xamarin.Forms. The conventional view was that behaviours extend the functionality of controls, with typical examples validating user text input. Inspired by the then Blend SDK, my thought was that behaviors can be split into two concepts. Behaviours are attached to a control and listen for something to happen. When the something happens, it triggers one or more actions in response. So actions are invoked by behaviours and executed on a specified control. Typical behaviors are listening for an event firing, or data changing. Typical actions are invoking a command, invoking a method, setting a property etc.</p>
+<p>I ended up producing a behaviours library for Xamarin.Forms, based on the Blend SDK, that I shipped on NuGet and for a while it was moderately successful. I updated it from time to time, but eventually forgot all about it.</p>
+<p>I’ve now resurrected it for .NET MAUI. But I’m not going to ship it as a NuGet. Doing so for the previous version caused me lots of work that I’d like to avoid now.</p>
+<h2 id="what-is-it">What is it?</h2>
+<p>Behaviours for .NET MAUI is a class library I’ve created that can be consumed by .NET MAUI apps. It supports the following scenarios:</p>
+<ul>
+<li>Invoking commands from XAML when an event fires or when data changes.</li>
+<li>Invoking methods from XAML (in the view or view model) when an event fires or when data changes.</li>
+<li>Setting properties from XAML (in the view or view model) when an event fires or when data changes.</li>
+<li>Invoke animations from XAML, including compound animations, when an event fires or when data changes.</li>
+<li>Triggering a specified <code>VisualState</code> on a <code>VisualElement</code> from XAML, when an event fires or when data changes.</li>
+</ul>
+<p>The result of using the library is that you can eliminate lots of boiler plate C# code, instead moving it to XAML.</p>
+<h3 id="behaviours">Behaviours</h3>
+<p>The library contains the following behaviours:</p>
+<ul>
+<li><code>EventHandlerBehavior</code> - listens for a specific event to occur, and executes one or more actions in response.</li>
+<li><code>DataChangedBehavior</code> - listens for the bound data to meet a specified condition, and executes one or more actions in response.</li>
+</ul>
+<h3 id="actions">Actions</h3>
+<p>The library contains the following actions:</p>
+<ul>
+<li><code>InvokeCommandAction</code> - executes a specified <code>ICommand</code> when invoked.</li>
+<li><code>InvokeMethodAction</code> - executes a method on a specified object when invoked.</li>
+<li><code>SetPropertyAction</code> - changes a specified property to a specified value.</li>
+<li><code>FadeAction</code> - performs a fade animation when invoked,</li>
+<li><code>RotateAction</code> - performs a rotate animation when invoked.</li>
+<li><code>ScaleAction</code> - performs a scale animation when invoked.</li>
+<li><code>TranslateAction</code> - performs a translate animation when invoked.</li>
+<li><code>GoToStateAction</code> - invokes visual state changes.</li>
+</ul>
+<h2 id="where-is-it">Where is it?</h2>
+<p>You can download the library and a sample that demos it from its <a href="https://github.com/davidbritch/dotnet-maui-behaviorslibrary">repo</a>.</p>
+<h2 id="how-do-i-use-it">How do I use it?</h2>
+<p>Using the library is a three step process:</p>
+<ol>
+<li>Clone the library from its <a href="https://github.com/davidbritch/dotnet-maui-behaviorslibrary">repo</a> and add the BehaviorsLibrary class library project to your .NET MAUI solution.</li>
+<li>Add a reference to the BehaviorsLibrary project to your app project.</li>
+<li>Add an <code>xmlns</code> to the library to your XAML file, and then consume the required behaviors/actions from XAML.</li>
+</ol>
+<p>The following code example shows an example of using the <code>EventHandlerBehavior</code> to invoke two commands:</p>
+<pre class=" language-xaml"><code class="prism  language-xaml">&lt;ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:behaviors="clr-namespace:Behaviors;assembly=Behaviors"
+             ...&gt;
+
+    &lt;ContentPage.Resources&gt;
+        &lt;converters:SelectedItemEventArgsToSelectedItemConverter x:Key="SelectedItemConverter" /&gt;
+    &lt;/ContentPage.Resources&gt;
+	...
+    &lt;ListView x:Name="listView"
+                 ItemsSource="{Binding People}"&gt;
+        &lt;ListView.Behaviors&gt;
+            &lt;behaviors:EventHandlerBehavior EventName="ItemSelected"&gt;
+                &lt;behaviors:InvokeCommandAction Command="{Binding ItemSelectedCommand}"
+                                               Converter="{StaticResource SelectedItemConverter}" /&gt;
+                &lt;behaviors:InvokeCommandAction Command="{Binding OutputAgeCommand}"
+                                               Converter="{StaticResource SelectedItemConverter}"
+                                               ConverterParameter="35" /&gt;
+            &lt;/behaviors:EventHandlerBehavior&gt;
+        &lt;/ListView.Behaviors&gt;
+    &lt;/ListView&gt;
+&lt;/ContentPage&gt;
+</code></pre>
+<p>In this example, when the <code>ListView.ItemSelected</code> event is raised, the <code>ItemSelectedCommand</code> and <code>OutputAgeCommand</code> are sequentially executed on the bound view model (the <code>InvokeCommandAction</code> class expects to find the <code>Command</code> objects on the <code>BindingContext</code> of the attached object). The advantage of this approach is that it enables commands to be associated with controls that weren’t designed to interact with commands, thereby removing boiler-plate event handling code from code-behind files.</p>
+<p>In the coming weeks I’ll explore all the functionality the library offers in more detail.</p>
+

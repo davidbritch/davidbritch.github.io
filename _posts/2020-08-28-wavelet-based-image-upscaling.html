@@ -1,0 +1,78 @@
+---
+layout: post
+title: Wavelet-based image upscaling
+date: '2020-08-28T11:29:00.000+01:00'
+author: David Britch
+tags:
+- ".NET"
+- C#
+modified_time: '2020-08-28T11:29:15.958+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-4275915572868880526
+blogger_orig_url: https://dbritch.blogspot.com/2020/08/wavelet-based-image-upscaling.html
+---
+
+<p>Last summer I wrote several blog posts about performing cross-platform imaging using Xamarin.Forms and SkiaSharp. My <a href="https://www.davidbritch.com/2019/07/cross-platform-imaging-with.html">first post</a> talked about accessing image pixel data using SkiaSharp, and performing basic imaging algorithms on that data. My <a href="https://www.davidbritch.com/2019/07/cross-platform-imaging-with_16.html">second post</a> talked about using convolution kernels to perform different imaging operations. My <a href="https://www.davidbritch.com/2019/07/frequency-filtering-with-xamarinforms.html">third post</a> talked about frequency filtering using a Fast Fourier Transform. I always intended to write a fourth post on performing wavelet transforms, but other work got in the way and I forgot about it.</p><p>Many years ago, my life revolved around wavelet transforms for several years. I used to implement them in C++, and despite all kinds of attempts to speed them up they were limited by the then speed of hardware. This week my mind drifted back to wavelet transforms, because my brain was feeling in need of a challenge.</p><p>So I decided to take my old C++ wavelet transform code and re-implement it in C#, using SkiaSharp to get image pixel data in a Xamarin.Forms app. The initial problem was finding an application for wavelet transforms. Traditionally they've been used for compression, as wavelet transforms are fantastic for decomposing data into its different frequency components, with different levels of resolution. However, coding compression algorithms is way beyond what I had in mind. So I started to think about what else they could be used for.</p><p>I had a eureka moment when I realised they should be great for upscaling images. A quick Google search revealed that academia had realised this before me, and there were lots of research papers in this area. Regardless, I decided to to implement wavelet-based image upscaling.</p><p>I'm not going to explain what a wavelet transform is. <a href="https://en.wikipedia.org/wiki/Wavelet_transform">Wikipedia</a>, and other websites,&nbsp;take care of that adequately. A warning though - you need a thorough understanding of maths and signal processing before you can begin to "grok" wavelet transforms.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/Imaging">GitHub</a>.</p><h3 style="text-align: left;">Implementation</h3><p>The wavelet transform algorithm I used includes implementations of the <a href="https://en.wikipedia.org/wiki/Haar_wavelet">Haar wavelet</a>, and the <a href="https://en.wikipedia.org/wiki/Cohen–Daubechies–Feauveau_wavelet">biorthogonal 5/3 wavelet</a>. In both cases, the algorithm is capable of transforming images of arbitrary sizes, not just powers of 2. In addition, the biorthogonal 5/3 wavelet implementation uses the <a href="https://en.wikipedia.org/wiki/Lifting_scheme">lifting scheme</a>&nbsp;(which is a <a href="https://en.wikipedia.org/wiki/Second-generation_wavelet_transform">second-generation wavelet transform</a>). The lifting scheme speeds up the wavelet transform by factorising the transform into convolution operators, known as lifting steps, which reduce the number of arithmetic operations by nearly a factor of two.</p><p>The following code example shows a high level overview of the wavelet image upscaling process:</p>
+
+
+
+<pre><code class="cs">public static unsafe SKPixmap WaveletUpscale(this SKImage image, Wavelet wavelet)
+{
+    int width = image.Width;
+    int height = image.Height;
+    int upscaledWidth = width * 2;
+    int upscaledHeight = height * 2;
+                        
+    float[,] y = new float[upscaledWidth, upscaledWidth];
+    float[,] cb = new float[upscaledWidth, upscaledWidth];
+    float[,] cr = new float[upscaledWidth, upscaledWidth];
+    float[,] a = new float[upscaledWidth, upscaledWidth];
+
+    image.ToYCbCrAArrays(y, cb, cr, a);
+
+    WaveletTransform2D wavelet2D;
+    WaveletTransform2D upscaledWavelet2D;
+
+    switch (wavelet)
+    {
+        case Wavelet.Haar:
+            wavelet2D = new HaarWavelet2D(width, height);
+            upscaledWavelet2D = new HaarWavelet2D(upscaledWidth, upscaledHeight);
+            break;
+        case Wavelet.Biorthogonal53:
+        default:
+            wavelet2D = new Biorthogonal53Wavelet2D(width, height);
+            upscaledWavelet2D = new Biorthogonal53Wavelet2D(upscaledWidth, upscaledHeight);
+            break;
+    }
+
+    wavelet2D.Transform2D(y);
+    wavelet2D.Transform2D(cb);
+    wavelet2D.Transform2D(cr);
+    wavelet2D.Transform2D(a);
+
+    upscaledWavelet2D.ReverseTransform2D(y);
+    upscaledWavelet2D.ReverseTransform2D(cb);
+    upscaledWavelet2D.ReverseTransform2D(cr);
+    upscaledWavelet2D.ReverseTransform2D(a);
+
+    for (int row = 0; row &lt; upscaledHeight; row++)
+    {
+        for (int col = 0; col &lt; upscaledWidth; col++)
+        {
+            y[col, row] *= 4.0f;
+            cb[col, row] *= 4.0f;
+            cr[col, row] *= 4.0f;
+            a[col, row] *= 4.0f;
+        }
+    }
+
+    SKImageInfo info = new SKImageInfo(upscaledWidth, upscaledHeight, SKColorType.Rgba8888);
+    SKImage output = SKImage.Create(info);
+
+    SKPixmap pixmap = output.ToRGBAPixmap(y, cb, cr, a);
+    return pixmap;                        
+}</code></pre>
+
+
+
+<p>The <b>WaveletUpscale</b>&nbsp;method is an extension method that works on an <b>SKImage</b>&nbsp;object, and requires a <b>Wavelet</b>&nbsp;argument that specifies which wavelet to use. This method doubles the width and height of the source image, although this could be parameterised if required. The image data is first converted from the RGBA colour space to the YCbCrA colour space, and its the data from this colour space that's wavelet transformed using the supplied wavelet.</p><p>After the wavelet transform has been performed, the image data is in the frequency domain. If this data were simply reverse transformed, it would yield the original YCbCrA image data. However, here the frequency domain data is inverse transformed into an image of twice the size. A consequence of doing this is that the resulting YCbCrA data needs multiplying by a constant to return it to its correct form. This data is then converted back from the YCbCrA colour space to the RGBA colour space, for display.</p><p>This simple technique yields compelling results. I haven't included any images because images taken using modern devices already have a high resolution, which is then doubled by this process. It takes a lot of zooming into the image to see the detail achieved by the upscaling process. There's no blockiness introduced, instead any artefacts are of the type commonly found in wavelet-based compression schemes.</p><p>A quick examination of the research literature reveals that this technique can be improved upon by performing different interpolation techniques to the data in the frequency domain, rather than simply inverse transforming the data into an image of twice the size.</p><p>I've not included any Wavelet Transform code in this blog post, as it's quite extensive. However, the main things to note are that: (1) it uses the Parallel.For loop to take advantage of the multi-cores that are present in most mobile devices, (2) it uses the lifting scheme to reduce the number of arithmetic operations performed, (3) the code could most likely be further optimised so that multiple passes of the data aren't required, and (4) the code can be found on&nbsp;<a href="https://github.com/davidbritch/xamarin-forms/tree/master/Imaging">GitHub</a>.</p><h4 style="text-align: left;">Wrapping up</h4><p>While consumer imaging apps don't typically contain operations that wavelet transform image data, it's a mainstay of scientific imaging. As I've commented before, it's safe to say that Xamarin.Forms and SkiaSharp make a good combination for scientific imaging apps, particularly for the tablet form factor.</p><p>The sample this code comes from can be found on&nbsp;<a href="https://github.com/davidbritch/xamarin-forms/tree/master/Imaging">GitHub</a>.</p>

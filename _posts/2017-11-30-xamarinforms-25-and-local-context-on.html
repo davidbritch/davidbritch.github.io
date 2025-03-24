@@ -1,0 +1,228 @@
+---
+layout: post
+title: Xamarin.Forms 2.5 and Local Context on Android
+date: '2017-11-30T11:56:00.001Z'
+author: David Britch
+tags:
+- ".NET"
+- C#
+- Xamarin
+modified_time: '2017-11-30T12:00:10.660Z'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3975600061737440590
+blogger_orig_url: https://dbritch.blogspot.com/2017/11/xamarinforms-25-and-local-context-on.html
+---
+
+<p><a href="https://www.davidbritch.com/2017/11/xamarinforms-25-and-local-context-in.html" target="_blank">Previously</a> I wrote about Xamarin.Forms 2.5 and local context in Android custom renderers. I briefly mentioned that <strong>Xamarin.Forms.Forms.Context</strong> is now obsolete, and that in a custom renderer you can usually replace references to <strong>Xamarin.Forms.Forms.Context</strong> with a reference to the view’s context, which is passed into the custom renderer constructor.</p>
+<p>So what do you do if your app references <strong>Xamarin.Forms.Forms.Context</strong> in a class that isn’t a custom renderer? For example, consider the <strong>GetVersionNumber</strong> method in the <strong>VersionHelper</strong> class: </p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:d4516bd7-951e-4d82-9ef4-aff8a88a7eb2" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 330px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Content;
+
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> DependencyServiceAndLocalContext.Droid
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> VersionHelper : IVersionHelper
+    {
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> GetVersionNumber()
+        {
+            var versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Empty;
+            Context context </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> Xamarin.Forms.Forms.Context;
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (context </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+            {
+                versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> context.PackageManager.GetPackageInfo(context.PackageName, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">).VersionName;
+            }
+            </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> versionNumber;
+        }            
+    }
+}
+</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>This code is executed by Xamarin.Forms <strong>DependencyService</strong> class, and references <strong>Xamarin.Forms.Forms.Context</strong> to get the local context. The problem is that as of Xamarin.Forms 2.5, it will result in a compiler warning - ‘Forms.Context’ is obsolete: ‘Context is obsolete as of version 2.5. Please use a local context instead.’</p>
+<p>The solution is to get the local context without referencing <strong>Xamarin.Forms.Forms.Context</strong>. How this is achieved depends on whether your app has a single <strong>Activity</strong>, or multiple activities.</p>
+<p><strong>Note:</strong> my preferred approach is the technique documented for apps with multiple activities, as it’s also applicable to apps with only a single <strong>Activity</strong>. Therefore, this is the approach I’ve demonstrated in a sample app that can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/DependencyServiceAndLocalContext" target="_blank">GitHub</a>.</p>
+<h3>Single Activity Apps</h3>
+<p>In a single <strong>Activity</strong> app the local context can be obtained from the <strong>MainActivity</strong> class. This can be achieved by adding an <strong>Init</strong> method to the <strong>VersionHelper</strong> class:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:79359179-4532-4cec-a4b4-fee19973efdc" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 447px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Content;
+
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> DependencyServiceAndLocalContext.Droid
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> VersionHelper : IVersionHelper
+    {
+        </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> Context _context;
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> Init(Context context)
+        {
+            _context </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> context;
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> GetVersionNumber()
+        {
+            var versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Empty;
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (_context </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+            {
+                versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> _context.PackageManager.GetPackageInfo(
+                    _context.PackageName, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">).VersionName;
+            }
+            </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> versionNumber;
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Then in the <strong>MainActivity</strong> class, call the <strong>VersionHelper.Init</strong> method, passing in the <strong>MainActivity</strong> instance as the context:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:2d1884ff-96a3-47e8-a165-5d90176b6c62" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 17px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 0);">VersionHelper.Init(</span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">);</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Alternatively, create a <strong>static</strong> property in the <strong>MainActivity</strong> class, and set it to the <strong>MainActivity</strong> instance:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:7708f17e-4a0a-4c54-954e-ad7b49a01bab" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 244px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> MainActivity : </span><span style="color: rgb(0, 0, 255);">global</span><span style="color: rgb(0, 0, 0);">::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
+{
+    </span><span style="color: rgb(0, 0, 255);">internal</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> MainActivity Instance { </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);">; </span><span style="color: rgb(0, 0, 255);">private</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);">; }
+
+    </span><span style="color: rgb(0, 0, 255);">protected</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">override</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnCreate(Bundle bundle)
+    {
+        ...
+        </span><span style="color: rgb(0, 0, 255);">global</span><span style="color: rgb(0, 0, 0);">::Xamarin.Forms.Forms.Init(</span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">, bundle);
+        Instance </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">;
+        Xamarin.Forms.DependencyService.Register</span><span style="color: rgb(0, 0, 0);">&lt;</span><span style="color: rgb(0, 0, 0);">IVersionHelper, VersionHelper</span><span style="color: rgb(0, 0, 0);">&gt;</span><span style="color: rgb(0, 0, 0);">();
+        LoadApplication(</span><span style="color: rgb(0, 0, 255);">new</span><span style="color: rgb(0, 0, 0);"> App());
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>Then, in the <strong>VersionHelper</strong> class, retrieve the local context from the <strong>MainActivity</strong> class:</p>
+
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:5fb71022-acb9-42c5-aa06-dfff56f85c39" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 321px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Content;
+
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> DependencyServiceAndLocalContext.Droid
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> VersionHelper : IVersionHelper
+    {
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> GetVersionNumber()
+        {
+            var versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Empty;
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (MainActivity.Instance </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+            {
+                versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> MainActivity.Instance.PackageManager.GetPackageInfo(
+                    MainActivity.Instance.PackageName, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">).VersionName;
+            }
+            </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> versionNumber;
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>There are other variations on this theme, but they all amount to the same idea – retrieving the local context from the <strong>MainActivity</strong> class.</p>
+<h3>Multiple Activity Apps</h3>
+<p>If your app uses multiple activities, and hence you need to ensure that the local context is accurate, the approach outlined for single <strong>Activity</strong> apps can be used and modified, but it soon becomes messy to ensure that classes have references to the correct local context.</p>
+<p>A better approach is to create a <strong>MainApplication</strong> class that implements the <strong>IActivityLifecycleCallbacks</strong> interface:</p>
+
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:3b78a965-c7e0-4d9c-976a-9b3e83fef8d7" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 1178px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> System;
+</span><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.App;
+</span><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Content;
+</span><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.OS;
+</span><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Runtime;
+
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> DependencyServiceAndLocalContext.Droid
+{
+    [Application]
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">partial</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> MainApplication : Application, Application.IActivityLifecycleCallbacks
+    {
+        </span><span style="color: rgb(0, 0, 255);">internal</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">static</span><span style="color: rgb(0, 0, 0);"> Context CurrentContext { </span><span style="color: rgb(0, 0, 255);">get</span><span style="color: rgb(0, 0, 0);">; </span><span style="color: rgb(0, 0, 255);">private</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">set</span><span style="color: rgb(0, 0, 0);">; }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> MainApplication(IntPtr handle, JniHandleOwnership transfer) : </span><span style="color: rgb(0, 0, 255);">base</span><span style="color: rgb(0, 0, 0);">(handle, transfer)
+        {
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">override</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnCreate()
+        {
+            </span><span style="color: rgb(0, 0, 255);">base</span><span style="color: rgb(0, 0, 0);">.OnCreate();
+            RegisterActivityLifecycleCallbacks(</span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">);
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">override</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnTerminate()
+        {
+            </span><span style="color: rgb(0, 0, 255);">base</span><span style="color: rgb(0, 0, 0);">.OnTerminate();
+            UnregisterActivityLifecycleCallbacks(</span><span style="color: rgb(0, 0, 255);">this</span><span style="color: rgb(0, 0, 0);">);
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityCreated(Activity activity, Bundle savedInstanceState)
+        {
+            CurrentContext </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> activity;
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityDestroyed(Activity activity)
+        {
+
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityPaused(Activity activity)
+        {
+
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityResumed(Activity activity)
+        {
+            CurrentContext </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> activity;
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivitySaveInstanceState(Activity activity, Bundle outState)
+        {
+
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityStarted(Activity activity)
+        {
+            CurrentContext </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> activity;
+        }
+
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">void</span><span style="color: rgb(0, 0, 0);"> OnActivityStopped(Activity activity)
+        {
+
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+
+<p>The <strong>CurrentContext</strong> property is updated with a reference to the current <strong>Activity</strong>, whenever an <strong>Activity</strong> is created, started, or resumed. Therefore this property will always have a reference to the current <strong>Activity</strong>, which can then be used as the local context. Therefore, the <strong>GetVersionNumber</strong> method in the <strong>VersionHelper</strong> class becomes:</p>
+<div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:322614ee-c198-41e0-85c5-4cb55ffc1090" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 331px; overflow: visible; background-color: white;"><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: rgb(0, 0, 255);">using</span><span style="color: rgb(0, 0, 0);"> Android.Content;
+
+</span><span style="color: rgb(0, 0, 255);">namespace</span><span style="color: rgb(0, 0, 0);"> DependencyServiceAndLocalContext.Droid
+{
+    </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">class</span><span style="color: rgb(0, 0, 0);"> VersionHelper : IVersionHelper
+    {
+        </span><span style="color: rgb(0, 0, 255);">public</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);"> GetVersionNumber()
+        {
+            var versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">string</span><span style="color: rgb(0, 0, 0);">.Empty;
+            </span><span style="color: rgb(0, 0, 255);">if</span><span style="color: rgb(0, 0, 0);"> (MainApplication.CurrentContext </span><span style="color: rgb(0, 0, 0);">!=</span><span style="color: rgb(0, 0, 0);"> </span><span style="color: rgb(0, 0, 255);">null</span><span style="color: rgb(0, 0, 0);">)
+            {
+                versionNumber </span><span style="color: rgb(0, 0, 0);">=</span><span style="color: rgb(0, 0, 0);"> MainApplication.CurrentContext.PackageManager.GetPackageInfo(
+                    MainApplication.CurrentContext.PackageName, </span><span style="color: rgb(128, 0, 128);">0</span><span style="color: rgb(0, 0, 0);">).VersionName;
+            }
+            </span><span style="color: rgb(0, 0, 255);">return</span><span style="color: rgb(0, 0, 0);"> versionNumber;
+        }
+    }
+}</span></div></pre><!-- Code inserted with Steve Dunn's Windows Live Writer Code Formatter Plugin.  http://dunnhq.com --></div>
+<p>By using this approach, any references to <strong>Xamarin.Forms.Forms.Context</strong> can simply be replaced with <strong>MainApplication.CurrentContext.</strong> In addition, while this approach is aimed at apps that contain multiple activities, it has the advantage that it can also be used by apps that contain only a single <strong>Activity</strong>.</p>

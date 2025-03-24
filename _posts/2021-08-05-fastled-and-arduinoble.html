@@ -1,0 +1,17 @@
+---
+layout: post
+title: Getting FastLED and ArduinoBLE to co-operate
+date: '2021-08-05T16:04:00.004+01:00'
+author: David Britch
+tags:
+- Arduino
+modified_time: '2021-08-05T16:05:17.984+01:00'
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-6237553188451263937
+blogger_orig_url: https://dbritch.blogspot.com/2021/08/fastled-and-arduinoble.html
+---
+
+<p>I recently finished building an Arduino-driven Nixie tube device, that I’ve called Fermenixie, which uses the <a href="https://www.arduino.cc/reference/en/libraries/fastled/">FastLED</a> library to control the RGB LEDs that act as backlights to the tubes. The device also uses a modified version of <a href="https://www.arduino.cc/en/Reference/ArduinoBLE">ArduinoBLE</a> library, that allows you to communicate with a BLE device (specifically, a tilt hydrometer). The library modifications enabled the retrieval of advertising data using the iBeacon protocol.</p>
+<p>Using FastLED on its own worked perfectly. Using ArduinoBLE on its own worked perfectly. Every time I combined the two, bluetooth communication became unreliable at best. Sometimes it worked. Sometimes it didn’t. But there were no hints as to why. After much experimentation it became obvious that the interaction of the two libraries was the problem, because when I commented out any calls to FastLED the bluetooth communication reliability problems vanished.</p>
+<p>After some digging, the problem ultimately turned out to be this: FastLED disables interrupts when issuing data, then re-enables them once its done. If you’re updating LEDs in your <code>loop</code> function, it doesn’t leave you with much scope for using other functionality (ArduinoBLE in my case) that requires interrupts. There were two solutions: (1) use a constant LED colour that’s set in your <code>setup</code> function, or (2) ensure in your <code>loop</code> function that you don’t invoke FastLED while you are using ArduinoBLE functionality (scanning, polling etc.).</p>
+<p>Anyway, I’ve put this in a blog post purely in case it’s useful to someone else some day, and saves them the week of time that it took me to figure it out.</p>
+

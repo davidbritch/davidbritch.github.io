@@ -1,0 +1,86 @@
+---
+layout: post
+title: Display SVGs as TabbedPage tab icons in Xamarin.Forms
+date: '2020-11-06T13:21:00.003Z'
+author: David Britch
+tags:
+- C#
+- Xamarin
+modified_time: '2020-11-06T13:27:14.462Z'
+thumbnail: https://1.bp.blogspot.com/-kRt2EiyBJJY/X6VJ3oVVfMI/AAAAAAAADL4/-7ozXLPa9K8EzlhGG_tVxL9eFo1JSS-BwCNcBGAsYHQ/s72-w296-c-h640/Simulator%2BScreen%2BShot%2B-%2BiPhone%2B11%2B-%2B2020-11-06%2Bat%2B11.52.37.png
+blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-3430724936061796241
+blogger_orig_url: https://dbritch.blogspot.com/2020/11/display-svgs-as-tabbedpage-tab-icons-in.html
+---
+
+<p>A common question that Xamarin.Forms users ask is “how the hell do I get my TabbedPage to display SVG-based tab icons?” A quick look at the <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/app-fundamentals/navigation/tabbed-page">TabbedPage doc</a> reveals a couple of hints:</p><ul><li>iOS – The <strong>TabbedRenderer</strong> has an overridable <strong>GetIcon</strong> method that can be used to load tab icons from a specified source. This override makes it possible to use SVG images as icons on a <strong>TabbedPage</strong>.</li><li>Android – The <strong>TabbedPageRenderer</strong> for Android AppCompat has an overridable <strong>SetTabIconImageSource</strong> method that can be used to load tab icons from a custom <strong>Drawable</strong>. This override makes it possible to use SVG images as icons on a <strong>TabbedPage</strong>.</li></ul><p>After a few hours investigation I discovered that while the doc is accurate, the advice for Android is no longer the best approach. Therefore, the purpose of this blog post is to outline the simplest techniques for displaying SVGs as <strong>TabbedPage</strong> icons on iOS and Android, with Xamarin.Forms.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TabbedPageSVGIcons">GitHub</a>.</p><h2>Implementation</h2><h3>iOS</h3><p>Xcode 12 introduced SVG image support for iOS (specifically iOS 13 or greater). However, the Xamarin.Forms <strong>TabbedPage</strong> doesn’t currently support consuming them. Therefore, to display an SVG as a <strong>TabbedPage</strong> icon it’s necessary to use a third-party library. Enter <a href="https://github.com/luberda-molinet/FFImageLoading">FFImageLoading</a>. For information about using the SVG support in FFImageLoading, including how to configure your iOS project to use this library, see <a href="https://github.com/luberda-molinet/FFImageLoading/wiki/SVG-support">SVG Support</a>.</p><p>The process for displaying SVGs as <strong>TabbedPage</strong> icons on iOS is as follows:</p><ol><li>Add the Xamarin.FFImageLoading.Svg.Forms NuGet package to your iOS project.</li><li>Call <strong>CachedImageRenderer.Init()</strong> in your <strong>AppDelegate</strong> class.</li><li>Add your SVGs to the <strong>Resources</strong> folder of your iOS project, and set the build action for each SVG to <strong>BundleResource</strong>.</li><li>Write a custom renderer for the <strong>TabbedPage</strong>, which overrides the <strong>GetIcon</strong> method to load an SVG file.</li></ol><p>The following code shows a custom renderer for <strong>TabbedPage</strong>, which overrides the <strong>GetIcon</strong> method:</p>
+<pre><code class="cs">[assembly: ExportRenderer(typeof(MyTabbedPage), typeof(MyTabbedPageRenderer))]
+namespace TabbedPageSVGIcons.iOS
+{
+    public class MyTabbedPageRenderer : TabbedRenderer
+    {
+        protected override async Task&lt;Tuple&lt;UIImage, UIImage&gt;&gt; GetIcon(Page page)
+        {
+            UIImage imageIcon;
+
+            if (page.IconImageSource is FileImageSource fileImage &amp;&amp; fileImage.File.Contains(&quot;.svg&quot;))
+            {
+                // Load SVG from file
+                UIImage uiImage = await ImageService.Instance.LoadFile(fileImage.File)
+                    .WithCustomDataResolver(new SvgDataResolver(15, 15, true))
+                    .AsUIImageAsync();
+                imageIcon = uiImage.ImageWithRenderingMode(UIImageRenderingMode.AlwaysOriginal);
+            }
+            else
+            {
+                // Load Xamarin.Forms supported image
+                IImageSourceHandler sourceHandler = null;
+                if (page.IconImageSource is UriImageSource)
+                    sourceHandler = new ImageLoaderSourceHandler();
+                else if (page.IconImageSource is FileImageSource)
+                    sourceHandler = new FileImageSourceHandler();
+                else if (page.IconImageSource is StreamImageSource)
+                    sourceHandler = new StreamImagesourceHandler();
+                else if (page.IconImageSource is FontImageSource)
+                    sourceHandler = new FontImageSourceHandler();
+
+                UIImage uiImage = await sourceHandler.LoadImageAsync(page.IconImageSource);
+                imageIcon = uiImage.ImageWithRenderingMode(UIImageRenderingMode.AlwaysOriginal);
+            }
+
+            return new Tuple&lt;UIImage, UIImage&gt;(imageIcon, null);
+        }
+    }
+}</uiimage></tuple></code></pre>
+<p>In this example, if the image filename contains .svg, the SVG is loaded by the FFImageLoading library, and returned as a <strong>UIImage</strong> for display. If the image isn’t an SVG, it’s loaded by Xamarin.Forms with the assistance of some in-built image handlers.</p><p>Note that FFImageLoading is actually rasterising the SVG to a <strong>UIImage</strong>, which raises the question why bother when you could just supply your own raster images? Well, exactly. The only benefit to the approach presented here is that <strong>SvgDataResolver</strong> type enables you to specify the size of the rasterised image. This enables you to develop logic that returns a specific sized image (based on the device the code is running on) from a single image file.</p><h3>Android</h3><p>It used to be necessary to write a custom renderer to display SVGs as <strong>TabbedPage</strong> icons on Android. However, this is no longer the case.</p><p>Android Studio includes a tool called Vector Asset Studio that enables you to import SVG files into your Android project as vector drawable resources. These vector resources can then automatically be displayed as <b>TabbedPage</b>&nbsp;icons, without any additional work.&nbsp;For more information about Vector Asset Studio, see <a href="https://developer.android.com/studio/write/vector-asset-studio">Add multi-density vector graphics</a>.</p><p>The process for displaying SVGs as <strong>TabbedPage</strong> icons on Android is as follows:</p><ol><li>Convert your SVGs to vector drawable resource XML files.</li><li>Add your vector drawable resource XML files to the <strong>Resources/drawable</strong> folder of your Android project, and set the build action for each XML file to <strong>AndroidResource</strong>.</li></ol><p>That’s it! There’s literally nothing else to consuming SVGs as <strong>TabbedPage</strong> icons on Android, via Xamarin.Forms. If you don’t want to install Android Studio to handle the conversion from SVG to vector files, you can use an online tool such as <a href="https://inloop.github.io/svg2android/">Android SVG to VectorDrawable</a>. While this tool is deprecated, it still works (and there are other online tools if this one becomes unavailable).</p><h3>Create a TabbedPage</h3><p>The icon displayed for each tab on a <strong>TabbedPage</strong> is specified by the <strong>IconImageSource</strong> property of the page type that represents the tab in the <strong>TabbedPage</strong>.The following code example shows a <strong>TabbedPage</strong> containing three <strong>ContentPage</strong> objects:</p>
+<pre><code class="xaml">&lt;local:MyTabbedPage xmlns="http://xamarin.com/schemas/2014/forms"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    xmlns:local="clr-namespace:TabbedPageSVGIcons"
+                    xmlns:android="clr-namespace:Xamarin.Forms.PlatformConfiguration.AndroidSpecific;assembly=Xamarin.Forms.Core"
+                    x:Class="TabbedPageSVGIcons.MainPage"
+                    android:TabbedPage.ToolbarPlacement="Bottom"&gt;
+    &lt;ContentPage Title="Tab 1"
+                 IconImageSource="{OnPlatform iOS=apple.svg, Android=ic_apple}"&gt;
+        &lt;StackLayout Margin="20"&gt;
+            &lt;Label Text="Tab 1"
+                   HorizontalOptions="Center"
+                   VerticalOptions="CenterAndExpand" /&gt;
+        &lt;/StackLayout&gt;
+    &lt;/ContentPage&gt;
+    &lt;ContentPage Title="Tab 2"
+                 IconImageSource="{OnPlatform iOS=android.svg, Android=ic_android}"&gt;
+        &lt;StackLayout Margin="20"&gt;
+            &lt;Label Text="Tab 2"
+                   HorizontalOptions="Center"
+                   VerticalOptions="CenterAndExpand" /&gt;
+        &lt;/StackLayout&gt;
+    &lt;/ContentPage&gt;
+    &lt;ContentPage Title="Tab 3"
+                 IconImageSource="{OnPlatform iOS=windows.svg, Android=ic_windows}"&gt;
+        &lt;StackLayout Margin="20"&gt;
+            &lt;Label Text="Tab 3"
+                   HorizontalOptions="Center"
+                   VerticalOptions="CenterAndExpand" /&gt;
+        &lt;/StackLayout&gt;
+    &lt;/ContentPage&gt;
+&lt;/local:MyTabbedPage&gt;</code></pre>
+<p>In this example, each <strong>ContentPage</strong> object specifies an <strong>IconImageSource</strong> as a vector file (SVG for iOS, vector drawable resource on Android). The <strong>OnPlatform</strong> markup extension is used to specify the different resource filenames on iOS and Android.</p><p>On iOS, the custom renderer ensures that each SVG is drawn on the <strong>TabbedPage</strong> tabs:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://1.bp.blogspot.com/-kRt2EiyBJJY/X6VJ3oVVfMI/AAAAAAAADL4/-7ozXLPa9K8EzlhGG_tVxL9eFo1JSS-BwCNcBGAsYHQ/s1792/Simulator%2BScreen%2BShot%2B-%2BiPhone%2B11%2B-%2B2020-11-06%2Bat%2B11.52.37.png" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="1792" data-original-width="828" height="640" src="https://1.bp.blogspot.com/-kRt2EiyBJJY/X6VJ3oVVfMI/AAAAAAAADL4/-7ozXLPa9K8EzlhGG_tVxL9eFo1JSS-BwCNcBGAsYHQ/w296-h640/Simulator%2BScreen%2BShot%2B-%2BiPhone%2B11%2B-%2B2020-11-06%2Bat%2B11.52.37.png" width="296" /></a></div><p>On Android, the Android runtime ensures that each vector drawable resource is drawn on the <strong>TabbedPage</strong> tabs by Xamarin.Forms:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://1.bp.blogspot.com/-nSdwK7RTnqU/X6VKZZyvbqI/AAAAAAAADMA/qGX36zsBOJ0ogh3dbZV1s1_spTWfI5YigCNcBGAsYHQ/s2508/Screenshot_1604663658.png" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="2508" data-original-width="1254" height="640" src="https://1.bp.blogspot.com/-nSdwK7RTnqU/X6VKZZyvbqI/AAAAAAAADMA/qGX36zsBOJ0ogh3dbZV1s1_spTWfI5YigCNcBGAsYHQ/w320-h640/Screenshot_1604663658.png" width="320" /></a></div><p>It’s also worth pointing out that the vector drawable resources are drawn regardless of whether the <strong>TabbedPage</strong> toolbar is displayed at the top or bottom of the screen:</p><div class="separator" style="clear: both; text-align: center;"><a href="https://1.bp.blogspot.com/-PrQj4Ez4P7g/X6VKiGrnkDI/AAAAAAAADME/RA4P4T-VUt4uc6nlJjN5PcsmkIe-KLlAACNcBGAsYHQ/s2508/Screenshot_1604663583.png" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="2508" data-original-width="1254" height="640" src="https://1.bp.blogspot.com/-PrQj4Ez4P7g/X6VKiGrnkDI/AAAAAAAADME/RA4P4T-VUt4uc6nlJjN5PcsmkIe-KLlAACNcBGAsYHQ/w320-h640/Screenshot_1604663583.png" width="320" /></a></div><h2 style="text-align: left;">Wrapping up</h2><p>Displaying SVGs as <strong>TabbedPage</strong> icons on iOS and Android, using Xamarin.Forms, requires two different techniques:</p><ul><li>On iOS, you write a custom renderer for the <strong>TabbedPage</strong>, and override the <strong>GetIcon</strong> method to convert an SVG file to a <strong>UIImage</strong>.</li><li>On Android, you convert your SVGs to vector drawable resources, and consume them from Xamarin.Forms as you would any other image resource.</li></ul><p>Hopefully this has cleared up how to do this. I’ll get the <a href="https://docs.microsoft.com/en-gb/xamarin/xamarin-forms/app-fundamentals/navigation/tabbed-page">TabbedPage doc</a> updated to reflect this.</p><p>The sample this code comes from can be found on <a href="https://github.com/davidbritch/xamarin-forms/tree/master/TabbedPageSVGIcons">GitHub</a>.</p>
