@@ -51,6 +51,8 @@ include:
 #   - vendor/gems/
 #   - vendor/ruby/
 
+url: "https://davestechlab.co.uk"
+
 # Plugins (previously gems:)
 plugins:
   - jekyll-paginate
@@ -59,6 +61,7 @@ plugins:
   - jekyll-feed
   - jemoji
   - jekyll-include-cache
+  - jekyll-sitemap
 
 # author:
 #   name   : "First Lastname"
