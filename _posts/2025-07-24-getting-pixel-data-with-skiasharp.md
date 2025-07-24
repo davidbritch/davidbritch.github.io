@@ -1,6 +1,7 @@
 ---
 title: Getting pixel data with SkiaSharp
 date: 2025-07-24
+excerpt: I've recently produced a prototype app for performing 2D image processing with SkiaSharp, hosted in a .NET MAUI app that targets Mac Catalyst. The reason I only targeted Mac Catalyst,
 tags:
 - "SkiaSharp"
 - ".NET MAUI"
