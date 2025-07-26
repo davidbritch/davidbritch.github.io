@@ -3,7 +3,7 @@ permalink: /books/
 title: "Books"
 ---
 
-Over the years I wrote a number of books, which are now all obsolete. However, they're listed below as a record of some of the technologies I worked with, and for archival purposes.
+Over the years I wrote a number of books. They're listed below as a record of some of the technologies I worked with, and for archival purposes.
 
 [![Enterprise Application Patterns using Xamarin.Forms](/assets/images/books/enterprise-application-patterns.png){: .align-center}](https://aka.ms/xamarinpatternsebook)
 
