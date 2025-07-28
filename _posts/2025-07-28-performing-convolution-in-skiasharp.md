@@ -9,7 +9,7 @@ tags:
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>
 
-[Previously]({% post_url 2025-07-24-getting-pixel-data-with-skiasharp %}). I wrote about using SkiaSharp to obtain the pixel data for an image, and then manipulate the pixel data. SkiaSharp offers a number of different approaches for accessing pixel data. I went with the most performant approach for doing this, which is to use the `GetPixels` method to return a pointer to the pixel data, dereference the pointer whenever you want to read/write a pixel value, and use pointer arithmetic to move the pointer to other pixels.
+[Previously]({% post_url 2025-07-24-getting-pixel-data-with-skiasharp %}), I wrote about using SkiaSharp to obtain the pixel data for an image, and then manipulate the pixel data. SkiaSharp offers a number of different approaches for accessing pixel data. I went with the most performant approach for doing this, which is to use the `GetPixels` method to return a pointer to the pixel data, dereference the pointer whenever you want to read/write a pixel value, and use pointer arithmetic to move the pointer to other pixels.
 
 In this blog post I'll discuss implementing convolution in SkiaSharp.
 
