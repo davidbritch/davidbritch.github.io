@@ -1,5 +1,5 @@
 ---
-title: Interacting with augmented reality content in a .NET MAUI iOS app
+title: Interacting with augmented reality content in .NET MAUI on iOS
 date: 2025-09-02
 excerpt: Augmented reality apps oftem allow touch-based interaction with the nodes that are overlayed on a scene. Gesture recognizer types can be used to detect gestures on nodes, that can then be manipulated as required.
 tags: 
