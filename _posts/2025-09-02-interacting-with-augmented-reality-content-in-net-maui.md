@@ -6,7 +6,7 @@ tags:
 - "ARKit"
 - ".NET MAUI"
 category: software
-redirect_from: /interacting-with-augmented-reality-content-in-net-maui
+redirect_from: /interacting-with-augmented-reality-content-in-net-maui/
 ---
 
 <a href="https://github.com/davidbritch/augmented-reality-demos/tree/main/02%20-%20Interaction" class="btn btn--info">Download the code</a>

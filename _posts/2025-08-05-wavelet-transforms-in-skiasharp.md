@@ -6,7 +6,7 @@ tags:
 - "SkiaSharp"
 - ".NET MAUI"
 category: software
-redirect_from: /wavelet-transforms-in-skiasharp
+redirect_from: /wavelet-transforms-in-skiasharp/
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>

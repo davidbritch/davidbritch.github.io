@@ -6,7 +6,7 @@ tags:
 - "ARKit"
 - ".NET MAUI"
 category: software
-redirect_from: /augmented-reality-basics-in-net-maui
+redirect_from: /augmented-reality-basics-in-net-maui/
 ---
 
 <a href="https://github.com/davidbritch/augmented-reality-demos/tree/main/01%20-%20ARView" class="btn btn--info">Download the code</a>
