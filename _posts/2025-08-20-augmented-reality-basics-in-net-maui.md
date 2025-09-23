@@ -5,6 +5,7 @@ excerpt: Augmented reality (AR) is the process of an app adding a 2D or 3D eleme
 tags: 
 - "ARKit"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/augmented-reality-demos/tree/main/01%20-%20ARView" class="btn btn--info">Download the code</a>

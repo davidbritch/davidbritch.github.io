@@ -5,6 +5,7 @@ excerpt: I've recently produced a prototype app for performing 2D image processi
 tags:
 - "SkiaSharp"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>

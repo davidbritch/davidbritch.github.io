@@ -5,6 +5,7 @@ excerpt: Traditionally, wavelet transforms are used for signal/image/video compr
 tags: 
 - "SkiaSharp"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>

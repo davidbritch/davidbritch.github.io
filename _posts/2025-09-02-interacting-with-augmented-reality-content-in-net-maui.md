@@ -5,6 +5,7 @@ excerpt: Augmented reality apps oftem allow touch-based interaction with the nod
 tags: 
 - "ARKit"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/augmented-reality-demos/tree/main/02%20-%20Interaction" class="btn btn--info">Download the code</a>

@@ -1,7 +1,11 @@
 main:
   - title: "About"
     url: /about/
+  - title: "Arduino"
+    url: /arduino/
   - title: "Beer"
     url: /beer/
   - title: "Books"
     url: /books/
+  - title: "Software"
+    url: /software/

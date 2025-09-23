@@ -9,6 +9,7 @@ tags:
 modified_time: '2018-06-08T09:03:21.565+01:00'
 blogger_id: tag:blogger.com,1999:blog-8265682915956744370.post-8686919287009802763
 blogger_orig_url: https://dbritch.blogspot.com/2018/06/xamarinforms-behaviors.html
+category: software
 ---
 
 <p>I <a href="https://www.davidbritch.com/2018/05/behaviours-library-14.html" target="_blank">previously</a> mentioned that I’d published v1.4 of my Behaviors library, and that it included some new functionality. In my <a href="https://www.davidbritch.com/2018/05/xamarinforms-behaviors-gotostateaction.html" target="_blank">last blog post</a> I looked at the <strong>GoToStateAction</strong>, which is the main item of new functionality. Another new item is the <strong>SourceObject</strong> property that now exists on the <strong>EventHandlerBehavior</strong> class.</p> <p>Prior to this addition, to use the <strong>EventHandlerBehavior</strong> you’d set the <strong>EventName</strong> property to the event that you want the behavior to listen to, and the <strong>EventHandlerBehavior</strong> would automatically look for this event on the <strong>VisualElement</strong> the behavior is attached to. The following XAML shows an example of this syntax:</p> <div class="wlWriterSmartContent" id="scid:9D7513F9-C04C-4721-824A-2B34F0212519:c40ae50b-04e1-4eac-a003-c3ac8e42b30c" style="margin: 0px; padding: 0px; float: none; display: inline;"><pre style="width: 851px; height: 170px; overflow: visible; background-color: white;"><div><!--

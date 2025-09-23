@@ -5,6 +5,7 @@ excerpt: As any computer science undergrad can tell you, a Fourier transform tak
 tags: 
 - "SkiaSharp"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>

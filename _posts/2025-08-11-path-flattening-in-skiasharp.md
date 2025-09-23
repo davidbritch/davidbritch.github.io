@@ -5,6 +5,7 @@ excerpt: It's also sometimes useful to obtain all the drawing operations and poi
 tags: 
 - "SkiaSharp"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-demos/tree/main/PathFlattening" class="btn btn--info">Download the code</a>

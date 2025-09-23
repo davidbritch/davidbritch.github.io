@@ -5,6 +5,7 @@ excerpt: In image processing, convolution is the process of adding each element 
 tags: 
 - "SkiaSharp"
 - ".NET MAUI"
+category: software
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>
