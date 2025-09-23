@@ -6,6 +6,7 @@ tags:
 - "ARKit"
 - ".NET MAUI"
 category: software
+redirect_from: /animating-augmented-reality-content-in-net-maui
 ---
 
 <a href="https://github.com/davidbritch/augmented-reality-demos/tree/main/03%20-%20Rotating%20earth" class="btn btn--info">Download the code</a>

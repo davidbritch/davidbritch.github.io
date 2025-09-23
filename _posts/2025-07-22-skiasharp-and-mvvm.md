@@ -5,6 +5,7 @@ tags:
 - "SkiaSharp"
 - ".NET MAUI"
 category: software
+redirect_from: /skiasharp-and-mvvm
 ---
 
 [SkiaSharp](https://github.com/mono/SkiaSharp) is a 2D graphics system for .NET and C#, powered by Google's [Skia](https://skia.org) graphics engine. It's available as a NuGet package, and can easily be added to any .NET project, particularly .NET MAUI projects.

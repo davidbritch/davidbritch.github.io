@@ -63,6 +63,7 @@ plugins:
   - jemoji
   - jekyll-include-cache
   - jekyll-sitemap
+  - jekyll-redirect-from
 
 # author:
 #   name   : "First Lastname"

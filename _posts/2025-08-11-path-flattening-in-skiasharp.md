@@ -6,6 +6,7 @@ tags:
 - "SkiaSharp"
 - ".NET MAUI"
 category: software
+redirect_from: /path-flattening-in-skiasharp
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-demos/tree/main/PathFlattening" class="btn btn--info">Download the code</a>

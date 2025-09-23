@@ -6,6 +6,7 @@ tags:
 - "SkiaSharp"
 - ".NET MAUI"
 category: software
+redirect_from: /frequency-filtering-in-skiasharp
 ---
 
 <a href="https://github.com/davidbritch/skiasharp-imaging" class="btn btn--info">Download the code</a>
