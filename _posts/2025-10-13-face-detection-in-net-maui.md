@@ -1,7 +1,7 @@
 ---
 title: Face tracking in .NET MAUI on iOS
 date: 2025-10-13
-excerpt: 
+excerpt: ARKit provides the ability to track multiple faces in a scene, and requires you to configure and run a face tracking session. ARKit also provides a coarse 3D mesh geometry that matches the size, shape, topology, and current facial expression of a detected face. 
 tags: 
 - "ARKit"
 - ".NET MAUI"
