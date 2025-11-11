@@ -207,7 +207,7 @@ Images can be loaded from your library in the formats supported by SkiaSharp. Th
 **Watch out!** .NET MAUI 9 doesn't respect the EXIF orientation data in images when it loads and displays them. This can result in images being incorrectly oriented. This is infuriating, particularly when Xamarin.Forms supported it, but I believe that .NET MAUI 10 does respect EXIF orientation data.
 {: .notice--warning}
 
-Then, when you click the **Encode** button the `MainPageViewModel.EncodeImage` method is invoked to encode the image pixel data to JPEG, and write it to disk:
+Then, when you click the **Encode to JPEG** button the `MainPageViewModel.EncodeImage` method is invoked to encode the image pixel data to JPEG, and write it to disk:
 
 ```csharp
 using CommunityToolkit.Mvvm.Input;
